@@ -214,7 +214,8 @@ class GenericFormatter(format: String) extends Formatter {
   override def formatPrefix(level: javalog.Level, date: String, name: String): String = {
     val levelName = level match {
       // if it maps to one of our levels, use our name.
-      case Level(name, _) => name
+      case x: Level =>
+        x.name
       case x: javalog.Level =>
         Logger.levelsMap.get(x.intValue) match {
           case None => "%03d".format(x.intValue)

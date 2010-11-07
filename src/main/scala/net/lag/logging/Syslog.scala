@@ -95,7 +95,7 @@ class SyslogFormatter(useIsoDateFormat: Boolean) extends Formatter {
 
   override def formatPrefix(level: javalog.Level, date: String, name: String): String = {
     val syslogLevel = level match {
-      case Level(name, x) => Syslog.severityForLogLevel(x)
+      case x: Level => Syslog.severityForLogLevel(x.value)
       case x: javalog.Level => Syslog.severityForLogLevel(x.intValue)
     }
     _serverName match {

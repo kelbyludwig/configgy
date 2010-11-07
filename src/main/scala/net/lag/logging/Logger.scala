@@ -25,13 +25,13 @@ import net.lag.configgy.{ConfigException, ConfigMap}
 
 
 // replace java's ridiculous log levels with the standard ones.
-sealed case class Level(name: String, value: Int) extends javalog.Level(name, value) {
+sealed abstract class Level(val name: String, val value: Int) extends javalog.Level(name, value) {
   Logger.levelNamesMap(name) = this
   Logger.levelsMap(value) = this
 }
 
 object Level {
-  case object OFF extends Level("OFF", Math.MAX_INT)
+  case object OFF extends Level("OFF", Int.MaxValue)
   case object FATAL extends Level("FATAL", 1000)
   case object CRITICAL extends Level("CRITICAL", 970)
   case object ERROR extends Level("ERROR", 930)
@@ -39,7 +39,7 @@ object Level {
   case object INFO extends Level("INFO", 800)
   case object DEBUG extends Level("DEBUG", 500)
   case object TRACE extends Level("TRACE", 400)
-  case object ALL extends Level("ALL", Math.MIN_INT)
+  case object ALL extends Level("ALL", Int.MinValue)
 }
 
 
