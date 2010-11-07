@@ -227,48 +227,6 @@ class Config extends ConfigMap {
     "subs=" + subscribers.toString
   }
 
-  /**
-   * Un-register this object from JMX. Any existing JMX nodes for this config object will vanish.
-   */
-  def unregisterWithJmx() = {
-    val mbs = ManagementFactory.getPlatformMBeanServer()
-    for (name <- jmxNodes) mbs.unregisterMBean(new jmx.ObjectName(name))
-    jmxNodes = Nil
-    for (key <- jmxSubscriptionKey) unsubscribe(key)
-    jmxSubscriptionKey = None
-  }
-
-  /**
-   * Register this object as a tree of JMX nodes that can be used to view and modify the config.
-   * This has the effect of subscribing to the root node, in order to reflect changes to the
-   * config object in JMX.
-   *
-   * @param packageName the name (usually your app's package name) that config objects should
-   *     appear inside
-   */
-  def registerWithJmx(packageName: String): Unit = {
-    val mbs = ManagementFactory.getPlatformMBeanServer()
-    val nodes = root.getJmxNodes(packageName, "")
-    val nodeNames = nodes.map { case (name, bean) => name }
-    // register any new nodes
-    nodes.filter { name => !(jmxNodes contains name) }.foreach { case (name, bean) =>
-      try {
-        mbs.registerMBean(bean, new jmx.ObjectName(name))
-      } catch {
-        case x: jmx.InstanceAlreadyExistsException =>
-          // happens in unit tests.
-      }
-    }
-    // unregister nodes that vanished
-    (jmxNodes -- nodeNames).foreach { name => mbs.unregisterMBean(new jmx.ObjectName(name)) }
-
-    jmxNodes = nodeNames
-    jmxPackageName = packageName
-    if (jmxSubscriptionKey == None) {
-      jmxSubscriptionKey = Some(subscribe { _ => registerWithJmx(packageName) })
-    }
-  }
-
 
   // -----  modifications that happen within monitored Attributes nodes
 

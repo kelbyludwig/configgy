@@ -279,7 +279,7 @@ private[configgy] class Attributes(val config: Config, val name: String) extends
     recurse(key) match {
       case Some((attr, name)) => attr.remove(name)
       case None => {
-        cells.removeKey(key) match {
+        cells.remove(key) match {
           case Some(_) => true
           case None => false
         }
@@ -398,37 +398,5 @@ private[configgy] class Attributes(val config: Config, val name: String) extends
       }
     }
     attr
-  }
-
-  def asJmxAttributes(): Array[jmx.MBeanAttributeInfo] = {
-    cells.map { case (key, value) =>
-      value match {
-        case StringCell(_) =>
-          new jmx.MBeanAttributeInfo(key, "java.lang.String", "", true, true, false)
-        case StringListCell(_) =>
-          new jmx.MBeanAttributeInfo(key, "java.util.List", "", true, true, false)
-        case AttributesCell(_) =>
-          null
-      }
-    }.filter { x => x ne null }.toList.toArray
-  }
-
-  def asJmxDisplay(key: String): AnyRef = {
-    cells.get(key) match {
-      case Some(StringCell(x)) => x
-      case Some(StringListCell(x)) => java.util.Arrays.asList(x: _*)
-      case x => null
-    }
-  }
-
-  def getJmxNodes(prefix: String, name: String): List[(String, JmxWrapper)] = {
-    (prefix + ":type=Config,name=" + (if (name == "") "(root)" else name), new JmxWrapper(this)) :: cells.flatMap { item =>
-      val (key, value) = item
-      value match {
-        case AttributesCell(x) =>
-          x.getJmxNodes(prefix, if (name == "") key else (name + "." + key))
-        case _ => Nil
-      }
-    }.toList
   }
 }
