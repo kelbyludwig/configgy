@@ -204,15 +204,6 @@ class ConfigSpec extends Specification with TestHelper {
       c.configMap("fruit").getName mustEqual "fruit"
     }
 
-    "register jmx" in {
-      val c = Config.fromMap(Map("apples" -> "23", "oranges" -> "17", "fruit.misc" -> "x,y,z"))
-      c.registerWithJmx("com.example.test")
-      val mbs = ManagementFactory.getPlatformMBeanServer()
-      mbs.getAttribute(new jmx.ObjectName("com.example.test:type=Config,name=(root)"), "apples") mustEqual "23"
-      mbs.getAttribute(new jmx.ObjectName("com.example.test:type=Config,name=(root)"), "oranges") mustEqual "17"
-      mbs.getAttribute(new jmx.ObjectName("com.example.test:type=Config,name=fruit"), "misc") mustEqual "x,y,z"
-    }
-
     "reload from string" in {
       val c = Config.fromString("""apples="23" oranges="17" basket { apples = true oranges = false }""")
       c("apples") mustEqual "23"
