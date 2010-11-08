@@ -1,17 +1,13 @@
 package com.twitter.configgy
 
-import java.io.{File, FileWriter}
+import java.io.File
 import java.math.BigInteger
-import java.net.{URL, URLClassLoader}
+import java.net.URLClassLoader
 import java.security.MessageDigest
-import java.util.jar._
 import java.util.Random
-import scala.io.Source
-import scala.runtime._
-import scala.tools.nsc.reporters.ConsoleReporter
-import scala.tools.nsc.{Global, Settings}
-
+import java.util.jar.JarFile
 import scala.collection.mutable
+import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.VirtualDirectory
 import scala.tools.nsc.reporters.AbstractReporter
