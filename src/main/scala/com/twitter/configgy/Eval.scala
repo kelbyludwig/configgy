@@ -11,9 +11,11 @@ import scala.runtime._
 import scala.tools.nsc.reporters.ConsoleReporter
 import scala.tools.nsc.{Global, Settings}
 
+import scala.collection.mutable
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.VirtualDirectory
-import scala.tools.nsc.util.BatchSourceFile
+import scala.tools.nsc.reporters.AbstractReporter
+import scala.tools.nsc.util.{BatchSourceFile, Position}
 
 /**
  * Evaluate a file or string and return the result.
@@ -24,6 +26,8 @@ object Eval {
   private val libPath = jarPathOfClass("scala.ScalaObject")
 
   private val jvmId = java.lang.Math.abs(new Random().nextInt())
+
+  val compiler = new StringCompiler(2)
 
   private def uniqueId(code: String): String = {
     val digest = MessageDigest.getInstance("SHA-1").digest(code.getBytes())
@@ -64,7 +68,7 @@ object Eval {
    * Dynamic scala compiler. Lots of (slow) state is created, so it may be advantageous to keep
    * around one of these and reuse it.
    */
-  class StringCompiler {
+  class StringCompiler(lineOffset: Int) {
     val virtualDirectory = new VirtualDirectory("(memory)", None)
 
     val settings = new Settings
@@ -78,7 +82,36 @@ object Eval {
     settings.bootclasspath.value = pathString
     settings.classpath.value = pathString
 
-    val reporter = new ConsoleReporter(settings)
+    val reporter = new AbstractReporter {
+      val settings = StringCompiler.this.settings
+      val messages = new mutable.ListBuffer[List[String]]
+
+      def display(pos: Position, message: String, severity: Severity) {
+        severity.count += 1
+        val severityName = severity match {
+          case ERROR   => "error: "
+          case WARNING => "warning: "
+          case _ => ""
+        }
+        messages += (severityName + "line " + (pos.line - lineOffset) + ": " + message) ::
+          (if (pos.isDefined) {
+            pos.inUltimateSource(pos.source).lineContent.stripLineEnd ::
+              (" " * (pos.column - 1) + "^") ::
+              Nil
+          } else {
+            Nil
+          })
+      }
+
+      def displayPrompt {
+        // no.
+      }
+
+      override def reset {
+        messages.clear()
+      }
+    }
+
     val global = new Global(settings, reporter)
 
     /*
@@ -100,14 +133,17 @@ object Eval {
       val compiler = new global.Run
       val sourceFiles = List(new BatchSourceFile("(inline)", code))
       val s1 = System.currentTimeMillis
-      compiler.compileSources(sourceFiles)
+      try {
+        compiler.compileSources(sourceFiles)
+      } catch {
+        case e: Error =>
+          println("boo.")
+      }
       val s2 = System.currentTimeMillis
       println("time to compile --> " + (s2 - s1) + " msec")
 
       if (reporter.hasErrors || reporter.WARNING.count > 0) {
-        // FIXME: use proper logging
-        System.err.println("reporter has warnings attempting to compile")
-        reporter.printSummary()
+        throw new CompilerException(reporter.messages.toList)
       }
     }
 
@@ -121,5 +157,5 @@ object Eval {
     }
   }
 
-  val compiler = new StringCompiler()
+  class CompilerException(val messages: List[List[String]]) extends Exception("Compiler exception")
 }
