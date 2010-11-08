@@ -57,6 +57,29 @@ object Eval {
     path.substring(indexOfFile, indexOfSeparator)
   }
 
+  /*
+   * Try to guess our app's classpath.
+   * This is probably fragile.
+   */
+  lazy val impliedClassPath: List[String] = {
+    val currentClassPath = this.getClass.getClassLoader.asInstanceOf[URLClassLoader].getURLs.
+      map(_.toString).filter(_.startsWith("file:")).map(_.substring(5)).toList
+
+    // if there's just one thing in the classpath, and it's a jar, assume an executable jar.
+    currentClassPath ::: (if (currentClassPath.size == 1 && currentClassPath(0).endsWith(".jar")) {
+      val jarFile = currentClassPath(0)
+      val relativeRoot = new File(jarFile).getParentFile()
+      val nestedClassPath = new JarFile(jarFile).getManifest.getMainAttributes.getValue("Class-Path")
+      if (nestedClassPath eq null) {
+        Nil
+      } else {
+        nestedClassPath.split(" ").map { f => new File(relativeRoot, f).getAbsolutePath }.toList
+      }
+    } else {
+      Nil
+    })
+  }
+
   def apply[T](code: String): T = {
     val id = uniqueId(code)
     val className = "Evaluator__" + id
@@ -76,11 +99,9 @@ object Eval {
     settings.unchecked.value = true // enable detailed unchecked warnings
     settings.outputDirs.setSingleOutput(virtualDirectory)
 
-    // FIXME: add our own jar & deps to the classpath.
     val pathList = List(compilerPath, libPath)
-    val pathString = pathList.mkString(File.pathSeparator)
-    settings.bootclasspath.value = pathString
-    settings.classpath.value = pathString
+    settings.bootclasspath.value = pathList.mkString(File.pathSeparator)
+    settings.classpath.value = (pathList ::: impliedClassPath).mkString(File.pathSeparator)
 
     val reporter = new AbstractReporter {
       val settings = StringCompiler.this.settings
@@ -132,15 +153,7 @@ object Eval {
     def apply(code: String) {
       val compiler = new global.Run
       val sourceFiles = List(new BatchSourceFile("(inline)", code))
-      val s1 = System.currentTimeMillis
-      try {
-        compiler.compileSources(sourceFiles)
-      } catch {
-        case e: Error =>
-          println("boo.")
-      }
-      val s2 = System.currentTimeMillis
-      println("time to compile --> " + (s2 - s1) + " msec")
+      compiler.compileSources(sourceFiles)
 
       if (reporter.hasErrors || reporter.WARNING.count > 0) {
         throw new CompilerException(reporter.messages.toList)
