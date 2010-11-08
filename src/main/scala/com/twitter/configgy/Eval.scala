@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010 Twitter, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain
+ * a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.twitter.configgy
 
 import java.io.File
@@ -7,6 +23,7 @@ import java.security.MessageDigest
 import java.util.Random
 import java.util.jar.JarFile
 import scala.collection.mutable
+import scala.io.Source
 import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.VirtualDirectory
@@ -24,6 +41,23 @@ object Eval {
   private val jvmId = java.lang.Math.abs(new Random().nextInt())
 
   val compiler = new StringCompiler(2)
+
+  /**
+   * Eval[Int]("1 + 1") // => 2
+   */
+  def apply[T](code: String): T = {
+    val id = uniqueId(code)
+    val className = "Evaluator__" + id
+    val cls = compiler(wrapCodeInClass(className, code), className)
+    cls.getConstructor().newInstance().asInstanceOf[() => Any].apply().asInstanceOf[T]
+  }
+
+  /**
+   * Eval[Int](new File("..."))
+   */
+  def apply[T](file: File): T = {
+    apply(Source.fromFile(file).mkString)
+  }
 
   private def uniqueId(code: String): String = {
     val digest = MessageDigest.getInstance("SHA-1").digest(code.getBytes())
@@ -74,13 +108,6 @@ object Eval {
     } else {
       Nil
     })
-  }
-
-  def apply[T](code: String): T = {
-    val id = uniqueId(code)
-    val className = "Evaluator__" + id
-    val cls = compiler(wrapCodeInClass(className, code), className)
-    cls.getConstructor().newInstance().asInstanceOf[() => Any].apply().asInstanceOf[T]
   }
 
   /**
