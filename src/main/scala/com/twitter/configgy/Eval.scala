@@ -48,7 +48,7 @@ object Eval {
   def apply[T](code: String): T = {
     val id = uniqueId(code)
     val className = "Evaluator__" + id
-    val cls = compiler(wrapCodeInClass(className, code), className)
+    val cls = compiler(wrapCodeInClass(className, code), className, id)
     cls.getConstructor().newInstance().asInstanceOf[() => Any].apply().asInstanceOf[T]
   }
 
@@ -116,6 +116,8 @@ object Eval {
    */
   class StringCompiler(lineOffset: Int) {
     val virtualDirectory = new VirtualDirectory("(memory)", None)
+
+    val cache = new mutable.HashMap[String, Class[_]]()
 
     val settings = new Settings
     settings.deprecation.value = true // enable detailed deprecation warnings
@@ -186,10 +188,17 @@ object Eval {
     /**
      * Reset the compiler, compile a new class, load it, and return it. Thread-safe.
      */
-    def apply(code: String, className: String): Class[_] = synchronized {
-      reset()
-      apply(code)
-      classLoader.loadClass(className)
+    def apply(code: String, className: String, id: String): Class[_] = synchronized {
+      cache.get(id) match {
+        case Some(cls) =>
+          cls
+        case None =>
+          reset()
+          apply(code)
+          val cls = classLoader.loadClass(className)
+          cache(id) = cls
+          cls
+      }
     }
   }
 
