@@ -43,6 +43,13 @@ private[logging] object Formatter {
   }
 }
 
+class LoggerFormatConfig {
+  def utcTime = false
+  def truncateAt = 0
+  def truncateStackTracesAt = 30
+  def useFullPackageNames = false
+  def prefix = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
+}
 
 /**
  * A standard log formatter for scala. This extends the java built-in
@@ -51,9 +58,10 @@ private[logging] object Formatter {
  * Truncation, exception formatting, multi-line logging, and time zones
  * are handled in this class. Subclasses are called for formatting the
  * line prefix, formatting the date, and determining the line terminator.
- *
  */
-abstract class Formatter extends javalog.Formatter {
+abstract class Formatter(config: LoggerFormatConfig) extends javalog.Formatter {
+
+  def this() = this(new LoggerFormatConfig)
 
   /**
    * Where to truncate log messages (character count). 0 = don't truncate.
@@ -182,7 +190,6 @@ abstract class Formatter extends javalog.Formatter {
   }
 }
 
-
 /**
  * A log formatter that takes a format string containing a date formatter and
  * positions for the level name and logger name, and uses that to generate the
@@ -201,9 +208,9 @@ abstract class Formatter extends javalog.Formatter {
  *
  *     "ERR [20080315-18:39:05.033] julius: "
  */
-class GenericFormatter(format: String) extends Formatter {
+class GenericFormatter(config: LoggerFormatConfig) extends Formatter(config) {
   private val dateFormatRegex = Pattern.compile("<([^>]+)>")
-  private val matcher = dateFormatRegex.matcher(format)
+  private val matcher = dateFormatRegex.matcher(config.prefix)
 
   private val DATE_FORMAT = new SimpleDateFormat(if (matcher.find()) matcher.group(1) else "yyyyMMdd-HH:mm:ss.SSS")
   private val FORMAT = matcher.replaceFirst("%3\\$s")
@@ -227,18 +234,7 @@ class GenericFormatter(format: String) extends Formatter {
   }
 }
 
-
-/**
- * The standard log formatter for a logfile. Log entries are written in this format:
- *
- *     ERR [20080315-18:39:05.033] julius: et tu, brute?
- *
- * which indicates the level (error), the date/time, the logger's name
- * (julius), and the message. The logger's name is usually also the
- * last significant segment of the package name (ie "com.lag.julius"),
- * although packages can override this.
- */
-class FileFormatter extends GenericFormatter("%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: ")
+object BasicFormatter extends GenericFormatter(new LoggerFormatConfig)
 
 class ExceptionJsonFormatter extends Formatter {
   private def throwableToMap(wrapped: Throwable): collection.Map[String, Any] = {
