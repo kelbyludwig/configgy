@@ -20,7 +20,7 @@ import com.twitter.TempFolder
 import org.specs.Specification
 
 object ThrottledHandlerSpec extends Specification with TempFolder {
-  private var handler: Handler = null
+  private var handler: StringHandler = null
 
   "ThrottledHandler" should {
     doBefore {
@@ -47,7 +47,7 @@ object ThrottledHandlerSpec extends Specification with TempFolder {
       throttledLog.reset()
       log.error("apple: %s", "done.")
 
-      handler.toString.split("\n").toList mustEqual List("apple: help!", "apple: help 2!", "orange: orange!", "orange: orange!", "apple: help 3!", "(swallowed 2 repeating messages)", "apple: done.")
+      handler.get.split("\n").toList mustEqual List("apple: help!", "apple: help 2!", "orange: orange!", "orange: orange!", "apple: help 3!", "(swallowed 2 repeating messages)", "apple: done.")
     }
   }
 }
