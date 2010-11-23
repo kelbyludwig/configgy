@@ -18,52 +18,109 @@ package com.twitter
 package logging
 
 import java.io._
+import java.util.Calendar
 import java.util.{logging => javalog}
 import org.specs.Specification
 import extensions._
 
 class FileHandlerSpec extends Specification with TempFolder {
+  def config(_filename: String, _policy: Policy, _append: Boolean, _formatter: Formatter): FileHandlerConfig = {
+    new FileHandlerConfig {
+      val filename = folderName + "/" + _filename
+      override val formatter = _formatter
+      val policy = _policy
+      val append = _append
+    }
+  }
+
+  def reader(filename: String) = {
+    new BufferedReader(new InputStreamReader(new FileInputStream(new File(folderName, filename))))
+  }
+
+  def writer(filename: String) = {
+    new OutputStreamWriter(new FileOutputStream(new File(folderName, filename)), "UTF-8")
+  }
+
   "FileHandler" should {
     val record1 = new javalog.LogRecord(Level.INFO, "first post!")
+    val record2 = new javalog.LogRecord(Level.INFO, "second post")
 
     "honor append setting on logfiles" in {
       withTempFolder {
-        val f = new OutputStreamWriter(new FileOutputStream(folderName + "/test.log"), "UTF-8")
+        val f = writer("test.log")
         f.write("hello!\n")
         f.close
 
-        val config = new FileHandlerConfig {
-          val filename = folderName + "/test.log"
-          override val formatter = BareFormatter
-          val policy = Policy.Hourly
-          val append = true
-        }
-        val handler = new FileHandler(config)
+        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter))
         handler.publish(record1)
 
-        val f2 = new BufferedReader(new InputStreamReader(new FileInputStream(folderName +
-          "/test.log")))
+        val f2 = reader("test.log")
         f2.readLine mustEqual "hello!"
       }
 
       withTempFolder {
-        val f = new OutputStreamWriter(new FileOutputStream(folderName + "/test.log"), "UTF-8")
+        val f = writer("test.log")
         f.write("hello!\n")
         f.close
 
-        val config = new FileHandlerConfig {
-          val filename = folderName + "/test.log"
-          override val formatter = BareFormatter
-          val policy = Policy.Hourly
-          val append = false
-        }
-        val handler = new FileHandler(config)
-
+        val handler = new FileHandler(config("test.log", Policy.Hourly, false, BareFormatter))
         handler.publish(record1)
 
-        val f2 = new BufferedReader(new InputStreamReader(new FileInputStream(folderName +
-          "/test.log")))
+        val f2 = reader("test.log")
         f2.readLine mustEqual "first post!"
+      }
+    }
+
+    "respond to a sighup to reopen a logfile with sun.misc" in {
+      try {
+        val signalClass = Class.forName("sun.misc.Signal")
+        val sighup = signalClass.getConstructor(classOf[String]).newInstance("HUP").asInstanceOf[Object]
+        val raiseMethod = signalClass.getMethod("raise", signalClass)
+
+        withTempFolder {
+          val handler = new FileHandler(config("new.log", Policy.SigHup, true, BareFormatter))
+
+          val logFile = new File(folderName, "new.log")
+          logFile.renameTo(new File(folderName, "old.log"))
+          handler.publish(record1)
+
+          raiseMethod.invoke(null, sighup)
+
+          val newLogFile = new File(folderName, "new.log")
+          newLogFile.exists() must eventually(be_==(true))
+
+          handler.publish(record2)
+
+          val oldReader = reader("old.log")
+          oldReader.readLine mustEqual "first post!"
+          val newReader = reader("new.log")
+          newReader.readLine mustEqual "second post"
+        }
+      } catch {
+        case ex: ClassNotFoundException =>
+      }
+    }
+
+    "roll logs on time" in {
+      "hourly" in {
+        withTempFolder {
+          val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter))
+          handler.computeNextRollTime(1206769996722L) mustEqual 1206770400000L
+          handler.computeNextRollTime(1206770400000L) mustEqual 1206774000000L
+          handler.computeNextRollTime(1206774000001L) mustEqual 1206777600000L
+        }
+      }
+
+      "weekly" in {
+        withTempFolder {
+          val formatter = new Formatter(new FormatterConfig { override val timezone = Some("GMT-7:00") })
+          val handler = new FileHandler(config("test.log", Policy.Weekly(Calendar.SUNDAY), true, formatter))
+          handler.computeNextRollTime(1250354734000L) mustEqual 1250406000000L
+          handler.computeNextRollTime(1250404734000L) mustEqual 1250406000000L
+          handler.computeNextRollTime(1250406001000L) mustEqual 1251010800000L
+          handler.computeNextRollTime(1250486000000L) mustEqual 1251010800000L
+          handler.computeNextRollTime(1250496000000L) mustEqual 1251010800000L
+        }
       }
     }
   }
