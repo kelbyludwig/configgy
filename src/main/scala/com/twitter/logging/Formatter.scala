@@ -41,184 +41,89 @@ private[logging] object Formatter {
     }
     out
   }
+
+  val dateFormatRegex = Pattern.compile("<([^>]+)>")
 }
 
-class LoggerFormatConfig {
-  def utcTime = false
-  def truncateAt = 0
-  def truncateStackTracesAt = 30
-  def useFullPackageNames = false
-  def prefix = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
+class FormatterConfig {
+  /**
+   * Should dates in log messages be reported in a different time zone rather than local time?
+   * If set, the time zone name must be one known by the java `TimeZone` class.
+   */
+  val timezone: Option[String] = None
+
+  /**
+   * Truncate log messages after N characters. 0 = don't truncate (the default).
+   */
+  val truncateAt = 0
+
+  /**
+   * Truncate stack traces in exception logging (line count).
+   */
+  val truncateStackTracesAt = 30
+
+  /**
+   * Use full package names like "com.example.thingy" instead of just the toplevel name like
+   * "thingy"?
+   */
+  val useFullPackageNames = false
+
+  /**
+   * Format for the log-line prefix, if any.
+   *
+   * There are two positional format strings (printf-style): the name of the level being logged
+   * (for example, "ERROR") and the name of the package that's logging (for example, "jobs").
+   *
+   * A string in `<` angle brackets `>` will be used to format the log entry's timestamp, using
+   * java's `SimpleDateFormat`.
+   *
+   * For example, a format string of:
+   *
+   *     "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
+   *
+   * will generate a log line prefix of:
+   *
+   *     "ERR [20080315-18:39:05.033] jobs: "
+   */
+  val prefix = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
 }
 
 /**
- * A standard log formatter for scala. This extends the java built-in
- * log formatter.
+ * A standard log formatter for scala. This extends the java built-in log formatter.
  *
  * Truncation, exception formatting, multi-line logging, and time zones
  * are handled in this class. Subclasses are called for formatting the
  * line prefix, formatting the date, and determining the line terminator.
  */
-abstract class Formatter(config: LoggerFormatConfig) extends javalog.Formatter {
+class Formatter(config: FormatterConfig) extends javalog.Formatter {
 
-  def this() = this(new LoggerFormatConfig)
+  def this() = this(new FormatterConfig)
 
-  /**
-   * Where to truncate log messages (character count). 0 = don't truncate.
-   */
-  var truncateAt: Int = 0
+  private val matcher = Formatter.dateFormatRegex.matcher(config.prefix)
 
-  /**
-   * Where to truncate stack traces in exception logging (line count).
-   */
-  var truncateStackTracesAt: Int = 30
-
-  /**
-   * Whether to use full package names like "com.example.thingy" or (the default) just the
-   * toplevel like "thingy".
-   */
-  var useFullPackageNames = false
-
-  private var _useUtc = false
-
-  /**
-   * Calendar to use for time zone display in date-time formatting.
-   */
-  var calendar = new GregorianCalendar
-
-  /**
-   * Return <code>true</code> if dates in log messages are being reported
-   * in UTC time, or <code>false</code> if they're being reported in local
-   * time.
-   */
-  def useUtc = _useUtc
-
-  /**
-   * Set whether dates in log messages should be reported in UTC time
-   * (<code>true</code>) or local time (<code>false</code>, the default).
-   * This variable and <code>timeZone</code> affect the same settings, so
-   * whichever is called last will take precedence.
-   */
-  def useUtc_=(utc: Boolean) = {
-    _useUtc = utc
-    if (utc) {
-      // kind of ridiculous.
-      calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"))
-    } else {
-      calendar = new GregorianCalendar
-    }
-    dateFormat.setCalendar(calendar)
-  }
-
-  /**
-   * Return the name of the time zone currently used for formatting dates
-   * in log messages. Normally this will either be the local time zone or
-   * UTC (if <code>use_utc</code> was set), but it can also be set
-   * manually.
-   */
-  def timeZone = calendar.getTimeZone.getDisplayName
-
-  /**
-   * Set the time zone for formatting dates in log messages. The time zone
-   * name must be one known by the java <code>TimeZone</code> class.
-   */
-  def timeZone_=(name: String) = {
-    calendar = new GregorianCalendar(TimeZone.getTimeZone(name))
-    dateFormat.setCalendar(calendar)
-  }
+  private val FORMAT = matcher.replaceFirst("%3\\$s")
+  private val DATE_FORMAT = new SimpleDateFormat(if (matcher.find()) matcher.group(1) else "yyyyMMdd-HH:mm:ss.SSS")
 
   /**
    * Return the date formatter to use for log messages.
    */
-  def dateFormat: SimpleDateFormat
+  def dateFormat: SimpleDateFormat = DATE_FORMAT
 
   /**
-   * Return the line terminator (if any) to use at the end of each log
-   * message.
+   * Calendar to use for time zone display in date-time formatting.
    */
-  def lineTerminator: String
+  val calendar = if (config.timezone.isDefined) {
+    new GregorianCalendar(TimeZone.getTimeZone(config.timezone.get))
+  } else {
+    new GregorianCalendar
+  }
+  dateFormat.setCalendar(calendar)
 
   /**
    * Return the string to prefix each log message with, given a log level,
    * formatted date string, and package name.
    */
-  def formatPrefix(level: javalog.Level, date: String, name: String): String
-
-  override def format(record: javalog.LogRecord): String = {
-    val name = record.getLoggerName match {
-      case "" => "(root)"
-      case n => {
-        val nameSegments = n.split("\\.")
-        if (nameSegments.length >= 2) {
-          if (useFullPackageNames) {
-            nameSegments.slice(0, nameSegments.length - 1).mkString(".")
-          } else {
-            nameSegments(nameSegments.length - 2)
-          }
-        } else {
-          n
-        }
-      }
-    }
-
-    var message: String = record match {
-      case r: LazyLogRecord =>
-        r.generate.toString
-      case r: javalog.LogRecord =>
-        r.getParameters match {
-          case null =>
-            r.getMessage
-          case formatArgs =>
-            String.format(r.getMessage, formatArgs: _*)
-        }
-    }
-
-    if ((truncateAt > 0) && (message.length > truncateAt)) {
-      message = message.substring(0, truncateAt) + "..."
-    }
-
-    // allow multi-line log entries to be atomic:
-    var lines = new mutable.ArrayBuffer[String]
-    lines ++= message.split("\n")
-
-    if (record.getThrown ne null) {
-      lines += record.getThrown.toString
-      lines ++= Formatter.formatStackTrace(record.getThrown, truncateStackTracesAt)
-    }
-    val prefix = formatPrefix(record.getLevel, dateFormat.format(new Date(record.getMillis)), name)
-    lines.mkString(prefix, lineTerminator + prefix, lineTerminator)
-  }
-}
-
-/**
- * A log formatter that takes a format string containing a date formatter and
- * positions for the level name and logger name, and uses that to generate the
- * log line prefix.
- *
- * The date format should be between `<` angle brackets `>` and be a string
- * that can be passed to java's `SimpleDateFormat`. The rest of the format
- * string will have java's C-like `format()` called on it, with the level name
- * as the first positional parameter, and the logger name as the second.
- *
- * For example, a format string of:
- *
- *     "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
- *
- * will generate a log line prefix of:
- *
- *     "ERR [20080315-18:39:05.033] julius: "
- */
-class GenericFormatter(config: LoggerFormatConfig) extends Formatter(config) {
-  private val dateFormatRegex = Pattern.compile("<([^>]+)>")
-  private val matcher = dateFormatRegex.matcher(config.prefix)
-
-  private val DATE_FORMAT = new SimpleDateFormat(if (matcher.find()) matcher.group(1) else "yyyyMMdd-HH:mm:ss.SSS")
-  private val FORMAT = matcher.replaceFirst("%3\\$s")
-
-  override def dateFormat = DATE_FORMAT
-  override def lineTerminator = "\n"
-
-  override def formatPrefix(level: javalog.Level, date: String, name: String): String = {
+  def formatPrefix(level: javalog.Level, date: String, name: String): String = {
     val levelName = level match {
       // if it maps to one of our levels, use our name.
       case x: Level =>
@@ -232,10 +137,75 @@ class GenericFormatter(config: LoggerFormatConfig) extends Formatter(config) {
 
     FORMAT.format(levelName, name, date)
   }
+
+  /**
+   * Return the line terminator (if any) to use at the end of each log
+   * message.
+   */
+  def lineTerminator: String = "\n"
+
+  /**
+   * Return formatted text from a java LogRecord.
+   */
+  def formatText(record: javalog.LogRecord): String = {
+    record match {
+      case r: LazyLogRecord =>
+        r.generate.toString
+      case r: javalog.LogRecord =>
+        r.getParameters match {
+          case null =>
+            r.getMessage
+          case formatArgs =>
+            String.format(r.getMessage, formatArgs: _*)
+        }
+    }
+  }
+
+  override def format(record: javalog.LogRecord): String = {
+    val name = record.getLoggerName match {
+      case null => "(root)"
+      case "" => "(root)"
+      case n => {
+        val nameSegments = n.split("\\.")
+        if (nameSegments.length >= 2) {
+          if (config.useFullPackageNames) {
+            nameSegments.slice(0, nameSegments.length - 1).mkString(".")
+          } else {
+            nameSegments(nameSegments.length - 2)
+          }
+        } else {
+          n
+        }
+      }
+    }
+
+    var message = formatText(record)
+
+    if ((config.truncateAt > 0) && (message.length > config.truncateAt)) {
+      message = message.substring(0, config.truncateAt) + "..."
+    }
+
+    // allow multi-line log entries to be atomic:
+    var lines = new mutable.ArrayBuffer[String]
+    lines ++= message.split("\n")
+
+    if (record.getThrown ne null) {
+      lines += record.getThrown.toString
+      lines ++= Formatter.formatStackTrace(record.getThrown, config.truncateStackTracesAt)
+    }
+    val prefix = formatPrefix(record.getLevel, dateFormat.format(new Date(record.getMillis)), name)
+    lines.mkString(prefix, lineTerminator + prefix, lineTerminator)
+  }
 }
 
-object BasicFormatter extends GenericFormatter(new LoggerFormatConfig)
+/**
+ * Formatter that uses all the defaults.
+ */
+object BasicFormatter extends Formatter
 
+/**
+ * Formatter that only logs records with attached exceptions, and logs them in json.
+ */
 class ExceptionJsonFormatter extends Formatter {
   private def throwableToMap(wrapped: Throwable): collection.Map[String, Any] = {
     val rv = mutable.Map[String, Any]("class" -> wrapped.getClass().getName())
@@ -249,14 +219,10 @@ class ExceptionJsonFormatter extends Formatter {
     rv
   }
 
-  def formatPrefix(level: javalog.Level, date: String, name: String): String = ""
-  def lineTerminator: String = "\n"
-  def dateFormat: SimpleDateFormat = new SimpleDateFormat("")
-
   override def format(record: javalog.LogRecord) = {
     val thrown = record.getThrown()
-    val map = mutable.Map[String, Any]()
     if (thrown != null) {
+      val map = mutable.Map[String, Any]()
       map ++= throwableToMap(thrown)
       map += ("level" -> record.getLevel())
       map += (("created_at", record.getMillis() / 1000))
@@ -267,16 +233,9 @@ class ExceptionJsonFormatter extends Formatter {
   }
 }
 
+/**
+ * Formatter that logs only the text of a log message, with no prefix (no date, etc).
+ */
 object BareFormatter extends Formatter {
-  def formatPrefix(level: javalog.Level, date: String, name: String): String = ""
-  def lineTerminator: String = "\n"
-  def dateFormat: SimpleDateFormat = new SimpleDateFormat("")
-  override def format(record: javalog.LogRecord) = {
-    record.getParameters match {
-      case null =>
-        record.getMessage() + lineTerminator
-      case formatArgs =>
-        record.getMessage().format(record.getParameters(): _*) + lineTerminator
-    }
-  }
+  override def format(record: javalog.LogRecord) = formatText(record) + lineTerminator
 }

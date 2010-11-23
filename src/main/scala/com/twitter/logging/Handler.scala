@@ -49,7 +49,7 @@ class StringHandler(_formatter: Formatter) extends Handler(_formatter) {
 
   def flush() = { }
 
-  override def toString = buffer.toString
+  def get = buffer.toString
 
   def clear() = {
     buffer.clear

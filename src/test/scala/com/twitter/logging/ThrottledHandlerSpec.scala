@@ -16,8 +16,8 @@
 
 package com.twitter.logging
 
-import org.specs.Specification
 import com.twitter.TempFolder
+import org.specs.Specification
 
 object ThrottledHandlerSpec extends Specification with TempFolder {
   private var handler: Handler = null
