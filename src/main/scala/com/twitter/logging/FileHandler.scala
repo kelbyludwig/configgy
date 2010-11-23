@@ -35,6 +35,7 @@ abstract class FileHandlerConfig {
   val policy: Policy
   val formatter: Formatter = BasicFormatter
   val append: Boolean
+  val rotateCount: Int = -1
 }
 
 /**
@@ -45,7 +46,6 @@ class FileHandler(config: FileHandlerConfig) extends Handler(config.formatter) {
   private var stream: Writer = null
   private var openTime: Long = 0
   private var nextRollTime: Long = 0
-  var rotateCount = -1
 
   openLog()
 
@@ -135,12 +135,12 @@ class FileHandler(config: FileHandlerConfig) extends Handler(config.formatter) {
    * This duplicates logrotate's "rotate count" option.
    */
   private def removeOldFiles() = {
-    val rotateCountPlusOne = rotateCount + 1  // Because the new file is already open.
+    val rotateCountPlusOne = config.rotateCount + 1  // Because the new file is already open.
     if (rotateCountPlusOne >= 1) {
       val filesInLogDir = new File(config.filename).getParentFile().list()
       val filteredFilesInLogDir = filesInLogDir.filter(f => f.startsWith(new File(config.filename).getName()))
-      if (filteredFilesInLogDir.length > rotateCount) {
-        for (i <- rotateCount.until(filteredFilesInLogDir.length)) {
+      if (filteredFilesInLogDir.length > config.rotateCount) {
+        for (i <- config.rotateCount.until(filteredFilesInLogDir.length)) {
           new File(filteredFilesInLogDir(i)).delete()
         }
       }
