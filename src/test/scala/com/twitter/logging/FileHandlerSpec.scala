@@ -29,7 +29,7 @@ class FileHandlerSpec extends Specification with TempFolder {
     new FileHandlerConfig {
       val filename = folderName + "/" + _filename
       override val formatter = _formatter
-      val policy = _policy
+      val roll = _policy
       val append = _append
       override val rotateCount = _rotateCount
     }

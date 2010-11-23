@@ -32,7 +32,7 @@ object Policy {
 
 abstract class FileHandlerConfig {
   val filename: String
-  val policy: Policy
+  val roll: Policy
   val formatter: Formatter = BasicFormatter
   val append: Boolean
   val rotateCount: Int = -1
@@ -42,14 +42,14 @@ abstract class FileHandlerConfig {
  * A log handler that writes log entries into a file, and rolls this file
  * at a requested interval (hourly, daily, or weekly).
  */
-class FileHandler(config: FileHandlerConfig) extends Handler(config.formatter) {
+class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatter) {
   private var stream: Writer = null
   private var openTime: Long = 0
   private var nextRollTime: Long = 0
 
   openLog()
 
-  if (config.policy == Policy.SigHup) {
+  if (config.roll == Policy.SigHup) {
     HandleSignal("HUP") { signal =>
       val oldStream = stream
       synchronized {
@@ -88,7 +88,7 @@ class FileHandler(config: FileHandlerConfig) extends Handler(config.formatter) {
    * Compute the suffix for a rolled logfile, based on the roll policy.
    */
   def timeSuffix(date: Date) = {
-    val dateFormat = config.policy match {
+    val dateFormat = config.roll match {
       case Policy.Never => new SimpleDateFormat("yyyy")
       case Policy.SigHup => new SimpleDateFormat("yyyy")
       case Policy.Hourly => new SimpleDateFormat("yyyyMMdd-HH")
@@ -109,7 +109,7 @@ class FileHandler(config: FileHandlerConfig) extends Handler(config.formatter) {
     next.set(Calendar.MILLISECOND, 0)
     next.set(Calendar.SECOND, 0)
     next.set(Calendar.MINUTE, 0)
-    config.policy match {
+    config.roll match {
       case Policy.Never =>
         next.add(Calendar.YEAR, 100)
       case Policy.SigHup =>

@@ -95,7 +95,7 @@ class FormatterConfig {
  * are handled in this class. Subclasses are called for formatting the
  * line prefix, formatting the date, and determining the line terminator.
  */
-class Formatter(config: FormatterConfig) extends javalog.Formatter {
+class Formatter(val config: FormatterConfig) extends javalog.Formatter {
 
   def this() = this(new FormatterConfig)
 
