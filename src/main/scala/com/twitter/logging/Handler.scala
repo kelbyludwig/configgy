@@ -22,8 +22,8 @@ import scala.collection.mutable
 import extensions._
 
 /**
- * A base log handler for scala. This extends the java built-in handler
- * and connects it with a formatter automatically.
+ * A base log handler for scala. This extends the java built-in handler and connects it with a
+ * formatter automatically.
  */
 abstract class Handler(val formatter: Formatter) extends javalog.Handler {
   setFormatter(formatter)
@@ -33,12 +33,10 @@ abstract class Handler(val formatter: Formatter) extends javalog.Handler {
   }
 }
 
-
 /**
- * Mostly useful for unit tests: logging goes directly into a
- * string buffer.
+ * Mostly useful for unit tests: logging goes directly into a string buffer.
  */
-class StringHandler(_formatter: Formatter) extends Handler(_formatter) {
+class StringHandler(formatter: Formatter) extends Handler(formatter) {
   private var buffer = new StringBuilder()
 
   def publish(record: javalog.LogRecord) = {
@@ -56,11 +54,10 @@ class StringHandler(_formatter: Formatter) extends Handler(_formatter) {
   }
 }
 
-
 /**
  * Log things to the console.
  */
-class ConsoleHandler(_formatter: Formatter) extends Handler(_formatter) {
+class ConsoleHandler(formatter: Formatter) extends Handler(formatter) {
   def publish(record: javalog.LogRecord) = {
     System.err.print(getFormatter().format(record))
   }

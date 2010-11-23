@@ -22,25 +22,34 @@ import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, logging => javalog}
 
 sealed abstract class Policy
-case object Never extends Policy
-case object Hourly extends Policy
-case object Daily extends Policy
-case class Weekly(dayOfWeek: Int) extends Policy
+object Policy {
+  case object Never extends Policy
+  case object Hourly extends Policy
+  case object Daily extends Policy
+  case class Weekly(dayOfWeek: Int) extends Policy
+  case object SigHup extends Policy
+}
 
+abstract class FileHandlerConfig {
+  val filename: String
+  val policy: Policy
+  val formatter: Formatter = BasicFormatter
+  val append: Boolean
+}
 
 /**
  * A log handler that writes log entries into a file, and rolls this file
  * at a requested interval (hourly, daily, or weekly).
  */
-class FileHandler(val filename: String, val policy: Policy, formatter: Formatter,
-                  val append: Boolean, val handleSighup: Boolean) extends Handler(formatter) {
+class FileHandler(config: FileHandlerConfig) extends Handler(config.formatter) {
   private var stream: Writer = null
   private var openTime: Long = 0
   private var nextRollTime: Long = 0
   var rotateCount = -1
+
   openLog()
 
-  if (handleSighup) {
+  if (config.policy == Policy.SigHup) {
     HandleSignal("HUP") { signal =>
       val oldStream = stream
       synchronized {
@@ -64,9 +73,9 @@ class FileHandler(val filename: String, val policy: Policy, formatter: Formatter
   }
 
   private def openWriter() = {
-    val dir = new File(filename).getParentFile
+    val dir = new File(config.filename).getParentFile
     if ((dir ne null) && !dir.exists) dir.mkdirs
-    new OutputStreamWriter(new FileOutputStream(filename, append), "UTF-8")
+    new OutputStreamWriter(new FileOutputStream(config.filename, config.append), "UTF-8")
   }
 
   private def openLog() = {
@@ -79,13 +88,14 @@ class FileHandler(val filename: String, val policy: Policy, formatter: Formatter
    * Compute the suffix for a rolled logfile, based on the roll policy.
    */
   def timeSuffix(date: Date) = {
-    val dateFormat = policy match {
-      case Never => new SimpleDateFormat("yyyy")
-      case Hourly => new SimpleDateFormat("yyyyMMdd-HH")
-      case Daily => new SimpleDateFormat("yyyyMMdd")
-      case Weekly(_) => new SimpleDateFormat("yyyyMMdd")
+    val dateFormat = config.policy match {
+      case Policy.Never => new SimpleDateFormat("yyyy")
+      case Policy.SigHup => new SimpleDateFormat("yyyy")
+      case Policy.Hourly => new SimpleDateFormat("yyyyMMdd-HH")
+      case Policy.Daily => new SimpleDateFormat("yyyyMMdd")
+      case Policy.Weekly(_) => new SimpleDateFormat("yyyyMMdd")
     }
-    dateFormat.setCalendar(formatter.calendar)
+    dateFormat.setCalendar(config.formatter.calendar)
     dateFormat.format(date)
   }
 
@@ -94,20 +104,22 @@ class FileHandler(val filename: String, val policy: Policy, formatter: Formatter
    * logfile roll.
    */
   def computeNextRollTime(now: Long): Long = {
-    val next = formatter.calendar.clone.asInstanceOf[Calendar]
+    val next = config.formatter.calendar.clone.asInstanceOf[Calendar]
     next.setTimeInMillis(now)
     next.set(Calendar.MILLISECOND, 0)
     next.set(Calendar.SECOND, 0)
     next.set(Calendar.MINUTE, 0)
-    policy match {
-      case Never =>
+    config.policy match {
+      case Policy.Never =>
         next.add(Calendar.YEAR, 100)
-      case Hourly =>
+      case Policy.SigHup =>
+        next.add(Calendar.YEAR, 100)
+      case Policy.Hourly =>
         next.add(Calendar.HOUR_OF_DAY, 1)
-      case Daily =>
+      case Policy.Daily =>
         next.set(Calendar.HOUR_OF_DAY, 0)
         next.add(Calendar.DAY_OF_MONTH, 1)
-      case Weekly(weekday) =>
+      case Policy.Weekly(weekday) =>
         next.set(Calendar.HOUR_OF_DAY, 0)
         do {
           next.add(Calendar.DAY_OF_MONTH, 1)
@@ -125,8 +137,8 @@ class FileHandler(val filename: String, val policy: Policy, formatter: Formatter
   private def removeOldFiles() = {
     val rotateCountPlusOne = rotateCount + 1  // Because the new file is already open.
     if (rotateCountPlusOne >= 1) {
-      val filesInLogDir = new File(filename).getParentFile().list()
-      val filteredFilesInLogDir = filesInLogDir.filter(f => f.startsWith(new File(filename).getName()))
+      val filesInLogDir = new File(config.filename).getParentFile().list()
+      val filteredFilesInLogDir = filesInLogDir.filter(f => f.startsWith(new File(config.filename).getName()))
       if (filteredFilesInLogDir.length > rotateCount) {
         for (i <- rotateCount.until(filteredFilesInLogDir.length)) {
           new File(filteredFilesInLogDir(i)).delete()
@@ -137,13 +149,13 @@ class FileHandler(val filename: String, val policy: Policy, formatter: Formatter
 
   def roll() = {
     stream.close()
-    val n = filename.lastIndexOf('.')
+    val n = config.filename.lastIndexOf('.')
     val newFilename = if (n > 0) {
-      filename.substring(0, n) + "-" + timeSuffix(new Date(openTime)) + filename.substring(n)
+      config.filename.substring(0, n) + "-" + timeSuffix(new Date(openTime)) + config.filename.substring(n)
     } else {
-      filename + "-" + timeSuffix(new Date(openTime))
+      config.filename + "-" + timeSuffix(new Date(openTime))
     }
-    new File(filename).renameTo(new File(newFilename))
+    new File(config.filename).renameTo(new File(newFilename))
     openLog()
     removeOldFiles()
   }
