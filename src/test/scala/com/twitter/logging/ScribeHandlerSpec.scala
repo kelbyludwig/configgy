@@ -20,6 +20,7 @@ package logging
 import java.net.{DatagramPacket, DatagramSocket, InetSocketAddress}
 import java.util.{logging => javalog}
 import org.specs.Specification
+import config._
 import extensions._
 
 class ScribeHandlerSpec extends Specification {

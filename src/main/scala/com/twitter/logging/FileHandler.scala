@@ -20,6 +20,7 @@ package logging
 import java.io.{File, FileOutputStream, OutputStreamWriter, Writer}
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, logging => javalog}
+import config._
 
 sealed abstract class Policy
 object Policy {
@@ -28,14 +29,6 @@ object Policy {
   case object Daily extends Policy
   case class Weekly(dayOfWeek: Int) extends Policy
   case object SigHup extends Policy
-}
-
-abstract class FileHandlerConfig {
-  val filename: String
-  val roll: Policy
-  val formatter: Formatter = BasicFormatter
-  val append: Boolean
-  val rotateCount: Int = -1
 }
 
 /**

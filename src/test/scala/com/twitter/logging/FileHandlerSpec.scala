@@ -21,6 +21,7 @@ import java.io._
 import java.util.{Calendar, Date}
 import java.util.{logging => javalog}
 import org.specs.Specification
+import config._
 import extensions._
 
 class FileHandlerSpec extends Specification with TempFolder {

@@ -17,11 +17,12 @@
 package com.twitter
 package logging
 
-import java.net.{DatagramPacket, DatagramSocket, InetAddress, InetSocketAddress, SocketAddress}
+import java.net.{DatagramPacket, DatagramSocket, InetSocketAddress, SocketAddress}
 import java.util.{logging => javalog}
 import java.text.SimpleDateFormat
 import scala.actors._
 import scala.actors.Actor._
+import config._
 import extensions._
 
 object SyslogHandler {
@@ -70,14 +71,6 @@ object SyslogHandler {
   val OLD_SYSLOG_DATE_FORMAT = new SimpleDateFormat("MMM dd HH:mm:ss")
 }
 
-abstract class SyslogHandlerConfig extends FormatterConfig {
-  val useIsoDateFormat = true
-  val priority = SyslogHandler.PRIORITY_USER
-  val hostname = InetAddress.getLocalHost().getHostName()
-  val serverName: Option[String] = None
-  val server: String
-}
-
 class SyslogFormatter(config: SyslogHandlerConfig) extends Formatter(config) {
   override def dateFormat = if (config.useIsoDateFormat) {
     SyslogHandler.ISO_DATE_FORMAT
@@ -101,7 +94,7 @@ class SyslogFormatter(config: SyslogHandlerConfig) extends Formatter(config) {
   }
 }
 
-class SyslogHandler(config: SyslogHandlerConfig) extends Handler(new SyslogFormatter(config)) {
+class SyslogHandler(val config: SyslogHandlerConfig) extends Handler(new SyslogFormatter(config)) {
   private val socket = new DatagramSocket
   private[logging] val dest: SocketAddress = config.server.split(":", 2).toList match {
     case host :: port :: Nil => new InetSocketAddress(host, port.toInt)

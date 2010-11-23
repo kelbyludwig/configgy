@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package com.twitter.logging
+package com.twitter
+package logging
 
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date, logging => javalog}
-import scala.collection.Map
-import scala.collection.mutable
-import net.lag.extensions._
-import net.lag.configgy.{ConfigException, ConfigMap}
-
+import scala.collection.{Map, mutable}
+import config._
 
 // replace java's ridiculous log levels with the standard ones.
 sealed abstract class Level(val name: String, val value: Int) extends javalog.Level(name, value) {
@@ -42,32 +40,7 @@ object Level {
   case object ALL extends Level("ALL", Int.MinValue)
 }
 
-
 class LoggingException(reason: String) extends Exception(reason)
-
-class LoggerConfig {
-  /**
-   * Name of the logging node. The default ("") is the top-level logger.
-   */
-  val node: String = ""
-
-  /**
-   * Log level for this node. Leaving it null is java's secret signal to use the parent logger's
-   * level.
-   */
-  val level: Level = null
-
-  /**
-   * Where to send log messages.
-   */
-  val handlers: List[Handler] = Nil
-
-  /**
-   * Override to have log messages stop at this node. Otherwise they are passed up to parent
-   * nodes.
-   */
-  val useParents = true
-}
 
 /**
  * Scala wrapper for logging.

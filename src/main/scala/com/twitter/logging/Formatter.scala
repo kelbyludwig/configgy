@@ -22,6 +22,7 @@ import java.util.{Date, GregorianCalendar, TimeZone, logging => javalog}
 import java.util.regex.Pattern
 import scala.collection.mutable
 import com.twitter.json.Json
+import config._
 import extensions._
 
 private[logging] object Formatter {
@@ -43,49 +44,6 @@ private[logging] object Formatter {
   }
 
   val dateFormatRegex = Pattern.compile("<([^>]+)>")
-}
-
-class FormatterConfig {
-  /**
-   * Should dates in log messages be reported in a different time zone rather than local time?
-   * If set, the time zone name must be one known by the java `TimeZone` class.
-   */
-  val timezone: Option[String] = None
-
-  /**
-   * Truncate log messages after N characters. 0 = don't truncate (the default).
-   */
-  val truncateAt = 0
-
-  /**
-   * Truncate stack traces in exception logging (line count).
-   */
-  val truncateStackTracesAt = 30
-
-  /**
-   * Use full package names like "com.example.thingy" instead of just the toplevel name like
-   * "thingy"?
-   */
-  val useFullPackageNames = false
-
-  /**
-   * Format for the log-line prefix, if any.
-   *
-   * There are two positional format strings (printf-style): the name of the level being logged
-   * (for example, "ERROR") and the name of the package that's logging (for example, "jobs").
-   *
-   * A string in `<` angle brackets `>` will be used to format the log entry's timestamp, using
-   * java's `SimpleDateFormat`.
-   *
-   * For example, a format string of:
-   *
-   *     "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
-   *
-   * will generate a log line prefix of:
-   *
-   *     "ERR [20080315-18:39:05.033] jobs: "
-   */
-  val prefix = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
 }
 
 /**

@@ -16,10 +16,12 @@
 
 package com.twitter.logging
 
+import java.net.InetSocketAddress
 import java.util.{logging => javalog}
 import com.twitter.extensions._
 import com.twitter.TempFolder
 import org.specs.Specification
+import config._
 
 class LoggerSpec extends Specification with TempFolder {
   private var handler: Handler = null
@@ -86,36 +88,58 @@ class LoggerSpec extends Specification with TempFolder {
     }
 
     "configure logging" in {
-      withTempFolder {
-        val config = new LoggerConfig {
-          override val node = "com.twitter"
-          override val level = Level.DEBUG
-          override val handlers = new FileHandler(new FileHandlerConfig {
-            val filename = folderName + "/test.log"
-            val roll = Policy.Never
-            val append = false
-            override val formatter = new Formatter(new FormatterConfig {
-              override val useFullPackageNames = true
-              override val truncateAt = 1024
-              override val prefix = "%s <HH:mm> %s"
-            })
-          }) :: Nil
+      "file handler" in {
+        withTempFolder {
+          val config = new LoggerConfig {
+            override val node = "com.twitter"
+            override val level = Level.DEBUG
+            override val handlers = new FileHandlerConfig {
+              val filename = folderName + "/test.log"
+              val roll = Policy.Never
+              val append = false
+              override val formatter = new FormatterConfig {
+                override val useFullPackageNames = true
+                override val truncateAt = 1024
+                override val prefix = "%s <HH:mm> %s"
+              }.formatter
+            }.handler :: Nil
+          }
+
+          val log = Logger.configure(config)
+
+          log.getLevel mustEqual Level.DEBUG
+          log.getHandlers().length mustEqual 1
+          val handler = log.getHandlers()(0).asInstanceOf[FileHandler]
+          handler.config.filename mustEqual folderName + "/test.log"
+          handler.config.append mustEqual false
+          val formatter = handler.config.formatter
+          formatter.formatPrefix(javalog.Level.WARNING, "10:55", "hello") mustEqual "WARNING 10:55 hello"
+          log.name mustEqual "com.twitter"
+          formatter.config.truncateAt mustEqual 1024
+          formatter.config.useFullPackageNames mustEqual true
         }
-
-        val log = Logger.configure(config)
-
-        log.getLevel mustEqual Level.DEBUG
-        log.getHandlers().length mustEqual 1
-        val handler = log.getHandlers()(0).asInstanceOf[FileHandler]
-        handler.config.filename mustEqual folderName + "/test.log"
-        handler.config.append mustEqual false
-        val formatter = handler.config.formatter
-        formatter.formatPrefix(javalog.Level.WARNING, "10:55", "hello") mustEqual "WARNING 10:55 hello"
-        log.name mustEqual "com.twitter"
-        formatter.config.truncateAt mustEqual 1024
-        formatter.config.useFullPackageNames mustEqual true
       }
-      
+
+      "syslog handler" in {
+        withTempFolder {
+          val config = new LoggerConfig {
+            override val node = "com.twitter"
+            override val handlers = new SyslogHandlerConfig {
+              val server = "example.com:212"
+              override val serverName = Some("elmo")
+              override val priority = 128
+            }.handler :: Nil
+          }
+
+          val log = Logger.configure(config)
+          log.getHandlers.length mustEqual 1
+          val h = log.getHandlers()(0).asInstanceOf[SyslogHandler]
+          h.dest.asInstanceOf[InetSocketAddress].getHostName mustEqual "example.com"
+          h.dest.asInstanceOf[InetSocketAddress].getPort mustEqual 212
+          h.config.serverName mustEqual Some("elmo")
+          h.config.priority mustEqual 128
+        }
+      }
       /*
 
       withTempFolder {
@@ -129,12 +153,6 @@ class LoggerSpec extends Specification with TempFolder {
         c.load(TEST_DATA)
         val log = Logger.configure(c, false, true)
 
-        log.getHandlers.length mustEqual 1
-        val h = log.getHandlers()(0).asInstanceOf[SyslogHandler]
-        h.dest.asInstanceOf[InetSocketAddress].getHostName mustEqual "example.com"
-        h.dest.asInstanceOf[InetSocketAddress].getPort mustEqual 212
-        h.serverName mustEqual "elmo"
-        h.priority mustEqual 128
       }
 
       withTempFolder {
