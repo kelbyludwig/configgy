@@ -45,22 +45,29 @@ object Level {
 
 class LoggingException(reason: String) extends Exception(reason)
 
+class LoggerConfig {
+  /**
+   * Name of the logging node. The default ("") is the top-level logger.
+   */
+  val node: String = ""
 
-private[logging] class LazyLogRecord(level: javalog.Level, messageGenerator: => AnyRef) extends javalog.LogRecord(level, "") {
-  // for each logged line, generate this string only once, regardless of how many handlers there are:
-  var cached: Option[AnyRef] = None
+  /**
+   * Log level for this node. Leaving it null is java's secret signal to use the parent logger's
+   * level.
+   */
+  val level: Level = null
 
-  def generate = {
-    cached match {
-      case Some(value) =>
-        value
-      case None =>
-        cached = Some(messageGenerator)
-        cached.get
-    }
-  }
+  /**
+   * Where to send log messages.
+   */
+  val handlers: List[Handler] = Nil
+
+  /**
+   * Override to have log messages stop at this node. Otherwise they are passed up to parent
+   * nodes.
+   */
+  val useParents = true
 }
-
 
 /**
  * Scala wrapper for logging.
@@ -242,8 +249,8 @@ object Logger extends Iterable[Logger] {
    * handlers are removed.
    */
   def reset() = {
-    clearHandlers
-    javaRoot.addHandler(new ConsoleHandler(new FileFormatter))
+    clearHandlers()
+    javaRoot.addHandler(new ConsoleHandler(new Formatter(new FormatterConfig)))
   }
 
   /**
@@ -336,134 +343,18 @@ object Logger extends Iterable[Logger] {
     loggers.iterator
   }
 
+  def configure(config: List[LoggerConfig]) {
+    reset()
+    config.foreach { configure(_) }
+  }
 
-// FIXME
-
-  /**
-   * Create a Logger (or find an existing one) and configure it according
-   * to a set of config keys.
-   *
-   * @param config a config block to parse
-   * @param validateOnly don't actually configure the Logger, just throw an
-   *     exception if the configuration is invalid
-   * @param allowNestedBlocks consider the configuration valid if it
-   *     contains nested config blocks, which are normally invalid
-   *
-   * @throws LoggingException if a config value can't be parsed correctly
-   *     (some settings can only be one of a small possible set of values)
-   *
-  def configure(config: ConfigMap, validateOnly: Boolean, allowNestedBlocks: Boolean): Logger = {
- 
-    val logger = Logger.get(config.getString("node", ""))
-    if (!validateOnly && allowNestedBlocks) {
-      for (handler <- logger.getHandlers) {
-        logger.removeHandler(handler)
-      }
+  def configure(config: LoggerConfig) = {
+    val logger = get(config.node)
+    if (config.level ne null) {
+      config.handlers.foreach { _.setLevel(config.level) }
+      logger.setLevel(config.level)
     }
-
-    val formatter = config.getString("format") match {
-      case None => {
-        config.getString("prefix_format") match {
-          case None => {
-            new FileFormatter
-          }
-          case Some(format) => new GenericFormatter(format)
-        }
-      }
-      case Some("bare") => BareFormatter
-      case Some("exception_json") => new ExceptionJsonFormatter
-      case Some(unknown) => throw new LoggingException("Unknown format: " + unknown)
-    }
-
-    var handlers: List[Handler] = Nil
-
-    if (config.getBool("console", false)) {
-      val handler = new ConsoleHandler(formatter)
-      handlers = handler :: handlers
-    }
-
-    for (filename <- config.getString("filename")) {
-      val policy = config.getString("roll", "never").toLowerCase match {
-        case "never" => Never
-        case "hourly" => Hourly
-        case "daily" => Daily
-        case "sunday" => Weekly(Calendar.SUNDAY)
-        case "monday" => Weekly(Calendar.MONDAY)
-        case "tuesday" => Weekly(Calendar.TUESDAY)
-        case "wednesday" => Weekly(Calendar.WEDNESDAY)
-        case "thursday" => Weekly(Calendar.THURSDAY)
-        case "friday" => Weekly(Calendar.FRIDAY)
-        case "saturday" => Weekly(Calendar.SATURDAY)
-        case x => throw new LoggingException("Unknown logfile rolling policy: " + x)
-      }
-      val handler =
-        new FileHandler(filename, policy, formatter, config.getBool("append", true), config.getBool("handle_sighup", false))
-      val rotateCount = config.getInt("rotate_count", -1 )
-      if (rotateCount != -1) {
-        handler.rotateCount = rotateCount
-      }
-      handlers = handler :: handlers
-    }
-
-    for (hostname <- config.getString("syslog_host")) {
-      val useIsoDateFormat = config.getBool("syslog_use_iso_date_format", true)
-      val handler = new SyslogHandler(useIsoDateFormat, hostname)
-      for (serverName <- config.getString("syslog_server_name")) {
-        handler.serverName = serverName
-      }
-      for (priority <- config.getInt("syslog_priority")) {
-        handler.priority = priority
-      }
-      handlers = handler :: handlers
-    }
-
-    for (scribeServer <- config.getString("scribe_server")) {
-      val sh = new ScribeHandler(formatter)
-      sh.server = scribeServer
-      config.getInt("scribe_buffer_msec").map { sh.bufferTimeMilliseconds = _ }
-      config.getInt("scribe_backoff_msec").map { sh.connectBackoffMilliseconds = _ }
-      config.getInt("scribe_max_packet_size").map { sh.maxMessagesPerTransaction = _ }
-      config.getString("scribe_category").map { sh.category = _ }
-      config.getInt("scribe_max_buffer").map { sh.maxMessagesToBuffer = _ }
-      handlers = sh :: handlers
-    }
-
-    * if they didn't specify a level, use "null", which is a secret
-     * signal to javalog to use the parent logger's level. this is the
-     * usual desired behavior, but not really documented anywhere. sigh.
-     *
-    val level = config.getString("level").map { levelName =>
-      levelNamesMap.get(levelName.toUpperCase) match {
-        case Some(x) => x
-        case None => throw new LoggingException("Unknown log level: " + levelName)
-      }
-    }
-
-    for (period <- config.getLong("throttle_period_msec"); rate <- config.getInt("throttle_rate")) {
-      handlers = handlers.map(new ThrottledHandler(_, period.toInt, rate))
-    }
-
-    for (handler <- handlers) {
-      level.map(handler.setLevel(_))
-      handler.formatter.useUtc = config.getBool("utc", false)
-      handler.formatter.truncateAt = config.getInt("truncate", 0)
-      handler.formatter.truncateStackTracesAt = config.getInt("truncate_stack_traces", 30)
-      handler.formatter.useFullPackageNames = config.getBool("use_full_package_names", false)
-      if (! validateOnly) {
-        logger.addHandler(handler)
-      }
-    }
-
-    if (! validateOnly) {
-      logger.setUseParentHandlers(config.getBool("use_parents", true))
-      level.foreach { level =>
-        if (logger.getLevel() eq null) {
-          logger.setLevel(level)
-        }
-      }
-    }
-
+    config.handlers.foreach { logger.addHandler(_) }
     logger
   }
-  */
 }
