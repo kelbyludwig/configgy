@@ -17,14 +17,14 @@
 package com.twitter
 package logging
 
-import java.util.{logging => javalog}
 import java.net.{DatagramPacket, DatagramSocket, InetAddress, InetSocketAddress, SocketAddress}
+import java.util.{logging => javalog}
 import java.text.SimpleDateFormat
 import scala.actors._
 import scala.actors.Actor._
 import extensions._
 
-private[logging] object Syslog {
+object SyslogHandler {
   val DEFAULT_PORT = 514
 
   val PRIORITY_USER = 8
@@ -65,74 +65,55 @@ private[logging] object Syslog {
       SEVERITY_DEBUG
     }
   }
+
+  val ISO_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+  val OLD_SYSLOG_DATE_FORMAT = new SimpleDateFormat("MMM dd HH:mm:ss")
 }
 
+abstract class SyslogHandlerConfig extends FormatterConfig {
+  val useIsoDateFormat = true
+  val priority = SyslogHandler.PRIORITY_USER
+  val hostname = InetAddress.getLocalHost().getHostName()
+  val serverName: Option[String] = None
+  val server: String
+}
 
-class SyslogFormatter(useIsoDateFormat: Boolean) extends Formatter {
-  private val ISO_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
-  private val OLD_SYSLOG_DATE_FORMAT = new SimpleDateFormat("MMM dd HH:mm:ss")
-
-  // user may override:
-  var priority = Syslog.PRIORITY_USER
-
-  // user may override:
-  var hostname = InetAddress.getLocalHost().getHostName()
-
-  private var _serverName: Option[String] = None
-  def serverName = _serverName match {
-    case None => ""
-    case Some(name) => name
-  }
-  def serverName_=(name: String) = {
-    _serverName = Some(name)
-  }
-  def clearServerName = {
-    _serverName = None
+class SyslogFormatter(config: SyslogHandlerConfig) extends Formatter(config) {
+  override def dateFormat = if (config.useIsoDateFormat) {
+    SyslogHandler.ISO_DATE_FORMAT
+  } else {
+    SyslogHandler.OLD_SYSLOG_DATE_FORMAT
   }
 
-  override def dateFormat = if (useIsoDateFormat) ISO_DATE_FORMAT else OLD_SYSLOG_DATE_FORMAT
   override def lineTerminator = ""
 
   override def formatPrefix(level: javalog.Level, date: String, name: String): String = {
     val syslogLevel = level match {
-      case x: Level => Syslog.severityForLogLevel(x.value)
-      case x: javalog.Level => Syslog.severityForLogLevel(x.intValue)
+      case x: Level => SyslogHandler.severityForLogLevel(x.value)
+      case x: javalog.Level => SyslogHandler.severityForLogLevel(x.intValue)
     }
-    _serverName match {
-      case None => "<%d>%s %s %s: ".format(priority | syslogLevel, date, hostname, name)
-      case Some(serverName) => "<%d>%s %s [%s] %s: ".format(priority | syslogLevel, date, hostname, serverName, name)
+    config.serverName match {
+      case None =>
+        "<%d>%s %s %s: ".format(config.priority | syslogLevel, date, config.hostname, name)
+      case Some(serverName) =>
+        "<%d>%s %s [%s] %s: ".format(config.priority | syslogLevel, date, config.hostname, serverName, name)
     }
   }
 }
 
-
-class SyslogHandler(useIsoDateFormat: Boolean, server: String, private val syslogFormatter: SyslogFormatter)
-  extends Handler(syslogFormatter) {
-  def this(useIsoDateFormat: Boolean, server: String) = this(useIsoDateFormat, server, new SyslogFormatter(useIsoDateFormat))
+class SyslogHandler(config: SyslogHandlerConfig) extends Handler(new SyslogFormatter(config)) {
   private val socket = new DatagramSocket
-  private[logging] val dest: SocketAddress = server.split(":", 2).toList match {
+  private[logging] val dest: SocketAddress = config.server.split(":", 2).toList match {
     case host :: port :: Nil => new InetSocketAddress(host, port.toInt)
-    case host :: Nil => new InetSocketAddress(host, Syslog.DEFAULT_PORT)
+    case host :: Nil => new InetSocketAddress(host, SyslogHandler.DEFAULT_PORT)
     case _ => null
   }
 
   def flush() = { }
   def close() = { }
 
-  def priority = syslogFormatter.priority
-  def priority_=(priority: Int) = {
-    syslogFormatter.priority = priority
-  }
-
-  def serverName = syslogFormatter.serverName
-  def serverName_=(name: String) {
-    syslogFormatter.serverName = name
-  }
-
-  def clearServerName = syslogFormatter.clearServerName
-
   def publish(record: javalog.LogRecord) = {
-    val data = syslogFormatter.format(record).getBytes
+    val data = formatter.format(record).getBytes
     val packet = new DatagramPacket(data, data.length, dest)
     Future {
       try {
