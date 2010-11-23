@@ -18,18 +18,20 @@ package com.twitter
 package logging
 
 import java.io._
-import java.util.Calendar
+import java.util.{Calendar, Date}
 import java.util.{logging => javalog}
 import org.specs.Specification
 import extensions._
 
 class FileHandlerSpec extends Specification with TempFolder {
-  def config(_filename: String, _policy: Policy, _append: Boolean, _formatter: Formatter): FileHandlerConfig = {
+  def config(_filename: String, _policy: Policy, _append: Boolean, _formatter: Formatter,
+             _rotateCount: Int): FileHandlerConfig = {
     new FileHandlerConfig {
       val filename = folderName + "/" + _filename
       override val formatter = _formatter
       val policy = _policy
       val append = _append
+      override val rotateCount = _rotateCount
     }
   }
 
@@ -51,7 +53,7 @@ class FileHandlerSpec extends Specification with TempFolder {
         f.write("hello!\n")
         f.close
 
-        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter))
+        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, -1))
         handler.publish(record1)
 
         val f2 = reader("test.log")
@@ -63,7 +65,7 @@ class FileHandlerSpec extends Specification with TempFolder {
         f.write("hello!\n")
         f.close
 
-        val handler = new FileHandler(config("test.log", Policy.Hourly, false, BareFormatter))
+        val handler = new FileHandler(config("test.log", Policy.Hourly, false, BareFormatter, -1))
         handler.publish(record1)
 
         val f2 = reader("test.log")
@@ -78,7 +80,7 @@ class FileHandlerSpec extends Specification with TempFolder {
         val raiseMethod = signalClass.getMethod("raise", signalClass)
 
         withTempFolder {
-          val handler = new FileHandler(config("new.log", Policy.SigHup, true, BareFormatter))
+          val handler = new FileHandler(config("new.log", Policy.SigHup, true, BareFormatter, -1))
 
           val logFile = new File(folderName, "new.log")
           logFile.renameTo(new File(folderName, "old.log"))
@@ -104,7 +106,7 @@ class FileHandlerSpec extends Specification with TempFolder {
     "roll logs on time" in {
       "hourly" in {
         withTempFolder {
-          val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter))
+          val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, -1))
           handler.computeNextRollTime(1206769996722L) mustEqual 1206770400000L
           handler.computeNextRollTime(1206770400000L) mustEqual 1206774000000L
           handler.computeNextRollTime(1206774000001L) mustEqual 1206777600000L
@@ -114,7 +116,7 @@ class FileHandlerSpec extends Specification with TempFolder {
       "weekly" in {
         withTempFolder {
           val formatter = new Formatter(new FormatterConfig { override val timezone = Some("GMT-7:00") })
-          val handler = new FileHandler(config("test.log", Policy.Weekly(Calendar.SUNDAY), true, formatter))
+          val handler = new FileHandler(config("test.log", Policy.Weekly(Calendar.SUNDAY), true, formatter, -1))
           handler.computeNextRollTime(1250354734000L) mustEqual 1250406000000L
           handler.computeNextRollTime(1250404734000L) mustEqual 1250406000000L
           handler.computeNextRollTime(1250406001000L) mustEqual 1251010800000L
@@ -123,5 +125,43 @@ class FileHandlerSpec extends Specification with TempFolder {
         }
       }
     }
+
+    // verify that at the proper time, the log file rolls and resets.
+    "roll logs into new files" in {
+      withTempFolder {
+        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, -1)) {
+          override def computeNextRollTime(): Long = System.currentTimeMillis + 100
+        }
+        handler.publish(record1)
+        val date = new Date()
+
+        Thread.sleep(150)
+        handler.publish(record2)
+        handler.close()
+
+        reader("test-" + handler.timeSuffix(date) + ".log").readLine mustEqual "first post!"
+        reader("test.log").readLine mustEqual "second post"
+      }
+    }
+
+    "keep no more than N log files around" in {
+      withTempFolder {
+        new File(folderName).list().length mustEqual 0
+
+        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, 2))
+        handler.publish(record1)
+        new File(folderName).list().length mustEqual 1
+        handler.roll()
+
+        handler.publish(record1)
+        new File(folderName).list().length mustEqual 2
+        handler.roll()
+
+        handler.publish(record1)
+        new File(folderName).list().length mustEqual 2
+        handler.close()
+      }
+    }
+
   }
 }
