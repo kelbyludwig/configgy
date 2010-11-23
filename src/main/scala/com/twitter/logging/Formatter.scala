@@ -26,7 +26,7 @@ import extensions._
 
 private[logging] object Formatter {
   // FIXME: might be nice to unmangle some scala names here.
-  private[logging] def formatStackTrace(t: Throwable, limit: Int): mutable.ListBuffer[String] = {
+  private[logging] def formatStackTrace(t: Throwable, limit: Int): List[String] = {
     var out = new mutable.ListBuffer[String]
     if (limit > 0) {
       out ++= t.getStackTrace.map { elem => "    at %s".format(elem.toString) }
@@ -39,7 +39,7 @@ private[logging] object Formatter {
       out += "Caused by %s".format(t.getCause.toString)
       out ++= formatStackTrace(t.getCause, limit)
     }
-    out
+    out.toList
   }
 
   val dateFormatRegex = Pattern.compile("<([^>]+)>")
@@ -101,8 +101,8 @@ class Formatter(config: FormatterConfig) extends javalog.Formatter {
 
   private val matcher = Formatter.dateFormatRegex.matcher(config.prefix)
 
-  private val FORMAT = matcher.replaceFirst("%3\\$s")
   private val DATE_FORMAT = new SimpleDateFormat(if (matcher.find()) matcher.group(1) else "yyyyMMdd-HH:mm:ss.SSS")
+  private val FORMAT = matcher.replaceFirst("%3\\$s")
 
   /**
    * Return the date formatter to use for log messages.
