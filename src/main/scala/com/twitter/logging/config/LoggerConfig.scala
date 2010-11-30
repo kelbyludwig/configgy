@@ -89,6 +89,12 @@ class FormatterConfig {
   def formatter = new Formatter(this)
 }
 
+abstract class ThrottledHandlerConfig {
+  val handler: Handler
+  val durationMilliseconds: Int
+  val maxToDisplay: Int
+}
+
 abstract class SyslogHandlerConfig extends FormatterConfig {
   val useIsoDateFormat = true
   val priority = SyslogHandler.PRIORITY_USER

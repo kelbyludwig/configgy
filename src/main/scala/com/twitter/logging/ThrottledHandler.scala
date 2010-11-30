@@ -19,8 +19,9 @@ package logging
 
 import java.util.{logging => javalog}
 import scala.collection.mutable
+import config._
 
-class ThrottledHandler(wrapped: Handler, val durationMilliseconds: Int, val maxToDisplay: Int) extends Handler(wrapped.formatter) {
+class ThrottledHandler(config: ThrottledHandlerConfig) extends Handler(config.handler.formatter) {
   private class Throttle(now: Long) {
     var startTime: Long = now
     var count: Int = 0
@@ -38,8 +39,8 @@ class ThrottledHandler(wrapped: Handler, val durationMilliseconds: Int, val maxT
     }
   }
 
-  def close() = wrapped.close()
-  def flush() = wrapped.flush()
+  def close() = config.handler.close()
+  def flush() = config.handler.flush()
 
   /**
    * Log a message, with sprintf formatting, at the desired level, and
@@ -47,20 +48,23 @@ class ThrottledHandler(wrapped: Handler, val durationMilliseconds: Int, val maxT
    */
   def publish(record: javalog.LogRecord) = {
     val now = System.currentTimeMillis
-    val throttle = throttleMap.synchronized { throttleMap.getOrElseUpdate(record.getMessage(), new Throttle(now)) }
+    val throttle = throttleMap.synchronized {
+      throttleMap.getOrElseUpdate(record.getMessage(), new Throttle(now))
+    }
     throttle.synchronized {
-      if (now - throttle.startTime >= durationMilliseconds) {
-        if (throttle.count > maxToDisplay) {
-          val throttledRecord = new javalog.LogRecord(record.getLevel(), "(swallowed %d repeating messages)".format(throttle.count - maxToDisplay))
+      if (now - throttle.startTime >= config.durationMilliseconds) {
+        if (throttle.count > config.maxToDisplay) {
+          val throttledRecord = new javalog.LogRecord(record.getLevel(),
+            "(swallowed %d repeating messages)".format(throttle.count - config.maxToDisplay))
           throttledRecord.setLoggerName(record.getLoggerName())
-          wrapped.publish(throttledRecord)
+          config.handler.publish(throttledRecord)
         }
         throttle.startTime = now
         throttle.count = 0
       }
       throttle.count += 1
-      if (throttle.count <= maxToDisplay) {
-        wrapped.publish(record)
+      if (throttle.count <= config.maxToDisplay) {
+        config.handler.publish(record)
       }
     }
   }

@@ -143,19 +143,6 @@ class LoggerSpec extends Specification with TempFolder {
       /*
 
       withTempFolder {
-        val TEST_DATA =
-          "node=\"net.lag\"\n" +
-          "syslog_host=\"example.com:212\"\n" +
-          "syslog_server_name=\"elmo\"\n" +
-          "syslog_priority=128\n"
-
-        val c = new Config
-        c.load(TEST_DATA)
-        val log = Logger.configure(c, false, true)
-
-      }
-
-      withTempFolder {
         // FIXME failing test to configure throttling
         val TEST_DATA =
           "node=\"net.lag\"\n" +
