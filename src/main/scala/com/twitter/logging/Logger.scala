@@ -17,8 +17,7 @@
 package com.twitter
 package logging
 
-import java.text.SimpleDateFormat
-import java.util.{Calendar, Date, logging => javalog}
+import java.util.{Calendar, logging => javalog}
 import scala.collection.{Map, mutable}
 import config._
 
@@ -254,15 +253,7 @@ object Logger extends Iterable[Logger] {
       case Some(logger) =>
         logger
       case None =>
-        val manager = javalog.LogManager.getLogManager
-        val logger = manager.getLogger(name) match {
-          case null =>
-            val javaLogger = javalog.Logger.getLogger(name)
-            manager.addLogger(javaLogger)
-            new Logger(name, javaLogger)
-          case x: javalog.Logger =>
-            new Logger(name, x)
-        }
+        val logger = new Logger(name, javalog.Logger.getLogger(name))
         logger.setUseParentHandlers(true)
         loggersCache.put(name, logger)
         logger
@@ -304,17 +295,7 @@ object Logger extends Iterable[Logger] {
   /**
    * Iterate the Logger objects that have been created.
    */
-  def iterator: Iterator[Logger] = {
-    val manager = javalog.LogManager.getLogManager
-    val loggers = new mutable.Queue[Logger]
-    // why on earth did java use ENUMERATION here?!
-    val e = manager.getLoggerNames
-    while (e.hasMoreElements) {
-      val item = manager.getLogger(e.nextElement.asInstanceOf[String])
-      if (item ne null) loggers += get(item.getName)
-    }
-    loggers.iterator
-  }
+  def iterator: Iterator[Logger] = loggersCache.values.iterator
 
   def configure(config: List[LoggerConfig]) {
     reset()
