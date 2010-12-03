@@ -119,8 +119,7 @@ abstract class ThrottledHandlerConfig extends HandlerConfig {
   val durationMilliseconds: Int
   val maxToDisplay: Int
 
-  // FIXME: pass all the params instead of "this"
-  def apply() = new ThrottledHandler(this)
+  def apply() = new ThrottledHandler(handler, durationMilliseconds, maxToDisplay)
 }
 
 abstract class FileHandlerConfig extends HandlerConfig {

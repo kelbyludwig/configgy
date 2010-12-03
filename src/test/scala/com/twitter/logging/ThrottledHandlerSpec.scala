@@ -35,12 +35,7 @@ class ThrottledHandlerSpec extends Specification with TempFolder {
 
     "throttle keyed log messages" in {
       val log = Logger()
-      val config = new ThrottledHandlerConfig {
-        val handler = ThrottledHandlerSpec.this.handler
-        val maxToDisplay = 3
-        val durationMilliseconds = 1000
-      }
-      val throttledLog = new ThrottledHandler(config)
+      val throttledLog = new ThrottledHandler(handler, 1000, 3)
       log.addHandler(throttledLog)
 
       log.error("apple: %s", "help!")
