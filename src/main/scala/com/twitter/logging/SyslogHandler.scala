@@ -97,13 +97,10 @@ class SyslogFormatter(val hostname: String, val serverName: Option[String],
   }
 }
 
-class SyslogHandler(val server: String, formatter: Formatter) extends Handler(formatter) {
+class SyslogHandler(val server: String, val port: Int, formatter: Formatter)
+      extends Handler(formatter) {
   private val socket = new DatagramSocket
-  private[logging] val dest: SocketAddress = server.split(":", 2).toList match {
-    case host :: port :: Nil => new InetSocketAddress(host, port.toInt)
-    case host :: Nil => new InetSocketAddress(host, SyslogHandler.DEFAULT_PORT)
-    case _ => null
-  }
+  private[logging] val dest = new InetSocketAddress(server, port)
 
   def flush() = { }
   def close() = { }
