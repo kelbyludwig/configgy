@@ -22,32 +22,19 @@ import java.net._
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.{Arrays, logging => javalog}
 import scala.collection.mutable
+import config._
 
 private class Retry extends Exception("retry")
-
-class ScribeHandlerConfig {
-  val formatter: Formatter = BasicFormatter
-
-  // send a scribe message no more frequently than this:
-  val bufferTimeMilliseconds = 100
-
-  // don't connect more frequently than this (when the scribe server is down):
-  val connectBackoffMilliseconds = 15000
-
-  val maxMessagesPerTransaction = 1000
-  val maxMessagesToBuffer = 10000
-
-  val hostname = "localhost"
-  val port = 1463
-  val category = "scala"
-}
 
 object ScribeHandler {
   val OK = 0
   val TRY_LATER = 1
 }
 
-class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatter) {
+class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMilliseconds: Int,
+                    connectBackoffMilliseconds: Int, maxMessagesPerTransaction: Int,
+                    maxMessagesToBuffer: Int, formatter: Formatter)
+      extends Handler(formatter) {
   // it may be necessary to log errors here if scribe is down:
   val log = Logger.get("scribe")
 
@@ -61,13 +48,13 @@ class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatte
 
   private def connect() {
     val now = System.currentTimeMillis
-    if (!socket.isDefined && (now - lastConnectAttempt > config.connectBackoffMilliseconds)) {
+    if (!socket.isDefined && (now - lastConnectAttempt > connectBackoffMilliseconds)) {
       lastConnectAttempt = now
       try {
-        socket = Some(new Socket(config.hostname, config.port))
+        socket = Some(new Socket(hostname, port))
       } catch {
         case e: Exception =>
-          log.error("Unable to open socket to scribe server at %s:%d: %s", config.hostname, config.port, e)
+          log.error("Unable to open socket to scribe server at %s:%d: %s", hostname, port, e)
       }
     }
   }
@@ -77,7 +64,7 @@ class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatte
     for (s <- socket) {
       val outStream = s.getOutputStream()
       val inStream = s.getInputStream()
-      val count = config.maxMessagesPerTransaction min queue.size
+      val count = maxMessagesPerTransaction min queue.size
       val buffer = makeBuffer(count)
 
       try {
@@ -112,7 +99,7 @@ class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatte
         case _: Retry =>
           flush()
         case e: Exception =>
-          log.error(e, "Failed to send %d log entries to scribe server at %s:%d", count, config.hostname, config.port)
+          log.error(e, "Failed to send %d log entries to scribe server at %s:%d", count, hostname, port)
           close()
       }
     }
@@ -121,12 +108,12 @@ class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatte
   def makeBuffer(count: Int): ByteBuffer = {
     val texts = for (i <- 0 until count) yield queue(i).getBytes("UTF-8")
 
-    val recordHeader = ByteBuffer.wrap(new Array[Byte](10 + config.category.length))
+    val recordHeader = ByteBuffer.wrap(new Array[Byte](10 + category.length))
     recordHeader.order(ByteOrder.BIG_ENDIAN)
     recordHeader.put(11: Byte)
     recordHeader.putShort(1)
-    recordHeader.putInt(config.category.length)
-    recordHeader.put(config.category.getBytes("ISO-8859-1"))
+    recordHeader.putInt(category.length)
+    recordHeader.put(category.getBytes("ISO-8859-1"))
     recordHeader.put(11: Byte)
     recordHeader.putShort(2)
 
@@ -162,10 +149,10 @@ class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatte
   def publish(record: javalog.LogRecord): Unit = synchronized {
     if (record.getLoggerName == "scribe") return
     queue += getFormatter.format(record)
-    while (queue.size > config.maxMessagesToBuffer) {
+    while (queue.size > maxMessagesToBuffer) {
       queue.trimStart(1)
     }
-    if (System.currentTimeMillis - lastTransmission >= config.bufferTimeMilliseconds) {
+    if (System.currentTimeMillis - lastTransmission >= bufferTimeMilliseconds) {
       flush()
     }
   }
@@ -173,8 +160,8 @@ class ScribeHandler(config: ScribeHandlerConfig) extends Handler(config.formatte
   override def toString = {
     ("<%s level=%s hostname=%s port=%d scribe_buffer_msec=%d " +
      "scribe_backoff_msec=%d scribe_max_packet_size=%d formatter=%s>").format(getClass.getName, getLevel,
-      config.hostname, config.port, config.bufferTimeMilliseconds, config.connectBackoffMilliseconds,
-      config.maxMessagesPerTransaction, config.formatter.toString)
+      hostname, port, bufferTimeMilliseconds, connectBackoffMilliseconds,
+      maxMessagesPerTransaction, formatter.toString)
   }
 
   val SCRIBE_PREFIX: Array[Byte] = Array(

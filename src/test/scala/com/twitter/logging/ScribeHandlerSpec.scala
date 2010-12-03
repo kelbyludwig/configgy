@@ -24,9 +24,9 @@ import config._
 import extensions._
 
 class ScribeHandlerSpec extends Specification {
-  val utcFormatter = new FormatterConfig { override val timezone = Some("UTC") }.apply()
+  val utcFormatter = new FormatterConfig { override val timezone = Some("UTC") }
 
-  def config(time: Int, max: Int, _formatter: Formatter) = new ScribeHandlerConfig {
+  def config(time: Int, max: Int, _formatter: FormatterConfig) = new ScribeHandlerConfig {
     override val formatter = _formatter
     override val category = "test"
     override val bufferTimeMilliseconds = time
@@ -42,7 +42,7 @@ class ScribeHandlerSpec extends Specification {
 
   "ScribeHandler" should {
     "build a scribe RPC call" in {
-      val scribe = new ScribeHandler(config(100, 10000, utcFormatter))
+      val scribe = config(100, 10000, utcFormatter)()
       scribe.publish(record1)
       scribe.publish(record2)
       scribe.makeBuffer(2).array.hexlify mustEqual "000000b080010001000000034c6f67000000000f0001" +
@@ -53,7 +53,7 @@ class ScribeHandlerSpec extends Specification {
     }
 
     "throw away log messages if scribe is too busy" in {
-      val scribe = new ScribeHandler(config(5000, 1, BareFormatter))
+      val scribe = config(5000, 1, BareFormatterConfig)()
       scribe.publish(record1)
       scribe.publish(record2)
       scribe.queue.toList mustEqual List("This is another message.\n")

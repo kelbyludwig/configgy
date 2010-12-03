@@ -115,17 +115,17 @@ trait HandlerConfig {
 }
 
 abstract class ThrottledHandlerConfig extends HandlerConfig {
-  val handler: Handler
+  val handler: HandlerConfig
   val durationMilliseconds: Int
   val maxToDisplay: Int
 
-  def apply() = new ThrottledHandler(handler, durationMilliseconds, maxToDisplay)
+  def apply() = new ThrottledHandler(handler(), durationMilliseconds, maxToDisplay)
 }
 
 abstract class FileHandlerConfig extends HandlerConfig {
   val filename: String
   val roll: Policy
-  val append: Boolean
+  val append: Boolean = true
   val rotateCount: Int = -1
 
   def apply() = new FileHandler(filename, roll, append, rotateCount, formatter())
@@ -135,4 +135,22 @@ abstract class SyslogHandlerConfig extends HandlerConfig {
   val server: String
 
   def apply() = new SyslogHandler(server, formatter())
+}
+
+class ScribeHandlerConfig extends HandlerConfig {
+  // send a scribe message no more frequently than this:
+  val bufferTimeMilliseconds = 100
+
+  // don't connect more frequently than this (when the scribe server is down):
+  val connectBackoffMilliseconds = 15000
+
+  val maxMessagesPerTransaction = 1000
+  val maxMessagesToBuffer = 10000
+
+  val hostname = "localhost"
+  val port = 1463
+  val category = "scala"
+
+  def apply() = new ScribeHandler(hostname, port, category, bufferTimeMilliseconds,
+    connectBackoffMilliseconds, maxMessagesPerTransaction, maxMessagesToBuffer, formatter())
 }
