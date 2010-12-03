@@ -96,7 +96,7 @@ class LoggerSpec extends Specification with TempFolder {
             override val handlers = new FileHandlerConfig {
               val filename = folderName + "/test.log"
               val roll = Policy.Never
-              val append = false
+              override val append = false
               override val formatter = new FormatterConfig {
                 override val useFullPackageNames = true
                 override val truncateAt = 1024
@@ -143,6 +143,56 @@ class LoggerSpec extends Specification with TempFolder {
           formatter.priority mustEqual 128
         }
       }
+
+      "complex config" in {
+        withTempFolder {
+          val config = (new LoggerConfig {
+            override val level = Level.INFO
+            override val handlers = new ThrottledHandlerConfig {
+              val durationMilliseconds = 60000
+              val maxToDisplay = 10
+              val handler = new FileHandlerConfig {
+                val filename = folderName + "/production.log"
+                val roll = Policy.SigHup
+                override val formatter = new FormatterConfig {
+                  override val truncateStackTracesAt = 100
+                }
+              }
+            } :: Nil
+          }) :: (new LoggerConfig {
+            override val node = "w3c"
+            override val level = Level.OFF
+            override val useParents = false
+          }) :: (new LoggerConfig {
+            override val node = "stats"
+            override val level = Level.INFO
+            override val useParents = false
+            override val handlers = new ScribeHandlerConfig {
+              override val formatter = BareFormatterConfig
+              override val maxMessagesToBuffer = 100
+              override val category = "cuckoo_json"
+            } :: Nil
+          }) :: (new LoggerConfig {
+            override val node = "bad_jobs"
+            override val level = Level.INFO
+            override val useParents = false
+            override val handlers = new FileHandlerConfig {
+              val filename = folderName + "/bad_jobs.log"
+              val roll = Policy.Never
+            } :: Nil
+          }) :: Nil
+
+          Logger.configure(config)
+          Logger.get("").getLevel mustEqual Level.INFO
+          Logger.get("w3c").getLevel mustEqual Level.OFF
+          Logger.get("stats").getLevel mustEqual Level.INFO
+          Logger.get("bad_jobs").getLevel mustEqual Level.INFO
+          Logger.get("").getHandlers()(0) must haveClass[ThrottledHandler]
+          Logger.get("w3c").getHandlers().size mustEqual 0
+          Logger.get("stats").getHandlers()(0) must haveClass[ScribeHandler]
+          Logger.get("bad_jobs").getHandlers()(0) must haveClass[FileHandler]
+        }
+      }
       /*
 
       withTempFolder {
@@ -164,7 +214,7 @@ class LoggerSpec extends Specification with TempFolder {
       }
       */
     }
-    
+
 
 /*
     "set two handlers on the same logger without resetting the level" in {

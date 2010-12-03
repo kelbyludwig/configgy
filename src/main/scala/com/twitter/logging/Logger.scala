@@ -298,7 +298,7 @@ object Logger extends Iterable[Logger] {
   def iterator: Iterator[Logger] = loggersCache.values.iterator
 
   def configure(config: List[LoggerConfig]) {
-    reset()
+    clearHandlers()
     config.foreach { configure(_) }
   }
 
