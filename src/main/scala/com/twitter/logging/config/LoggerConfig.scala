@@ -24,24 +24,25 @@ class LoggerConfig {
   /**
    * Name of the logging node. The default ("") is the top-level logger.
    */
-  val node: String = ""
+  var node: String = ""
 
   /**
    * Log level for this node. Leaving it null is java's secret signal to use the parent logger's
    * level.
    */
-  val level: Level = null
+  var level: Level = null
 
   /**
    * Where to send log messages.
    */
-  implicit val handlers: List[HandlerConfig] = Nil
+  var handlers: List[HandlerConfig] = Nil
+  def handlers_=(h: HandlerConfig) { handlers = List(h) }
 
   /**
    * Override to have log messages stop at this node. Otherwise they are passed up to parent
    * nodes.
    */
-  val useParents = true
+  var useParents = true
 }
 
 class FormatterConfig {
@@ -49,23 +50,24 @@ class FormatterConfig {
    * Should dates in log messages be reported in a different time zone rather than local time?
    * If set, the time zone name must be one known by the java `TimeZone` class.
    */
-  val timezone: Option[String] = None
+  var timezone: Option[String] = None
+  def timezone_=(zone: String) { timezone = Some(zone) }
 
   /**
    * Truncate log messages after N characters. 0 = don't truncate (the default).
    */
-  val truncateAt = 0
+  var truncateAt: Int = 0
 
   /**
    * Truncate stack traces in exception logging (line count).
    */
-  val truncateStackTracesAt = 30
+  var truncateStackTracesAt: Int = 30
 
   /**
    * Use full package names like "com.example.thingy" instead of just the toplevel name like
    * "thingy"?
    */
-  val useFullPackageNames = false
+  var useFullPackageNames: Boolean = false
 
   /**
    * Format for the log-line prefix, if any.
@@ -84,7 +86,7 @@ class FormatterConfig {
    *
    *     "ERR [20080315-18:39:05.033] jobs: "
    */
-  val prefix = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
+  var prefix: String = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
 
   def apply() = new Formatter(timezone, truncateAt, truncateStackTracesAt, useFullPackageNames,
     prefix)
@@ -99,57 +101,109 @@ object BareFormatterConfig extends FormatterConfig {
 }
 
 abstract class SyslogFormatterConfig extends FormatterConfig {
-  val hostname = InetAddress.getLocalHost().getHostName()
-  val serverName: Option[String] = None
-  val useIsoDateFormat = true
-  val priority = SyslogHandler.PRIORITY_USER
+  /**
+   * Hostname to prepend to log lines.
+   */
+  var hostname: String = InetAddress.getLocalHost().getHostName()
+
+  /**
+   * Optional server name to insert before log entries.
+   */
+  var serverName: Option[String] = None
+
+  /**
+   * Use new standard ISO-format timestamps instead of old BSD-format?
+   */
+  var useIsoDateFormat: Boolean = true
+
+  /**
+   * Priority level in syslog numbers.
+   */
+  var priority: Int = SyslogHandler.PRIORITY_USER
+
+  def serverName_=(name: String) { serverName = Some(name) }
 
   override def apply() = new SyslogFormatter(hostname, serverName, useIsoDateFormat, priority,
     timezone, truncateAt, truncateStackTracesAt)
 }
 
 trait HandlerConfig {
-  val formatter: FormatterConfig = BasicFormatterConfig
+  var formatter: FormatterConfig = BasicFormatterConfig
 
   def apply(): Handler
 }
 
 abstract class ThrottledHandlerConfig extends HandlerConfig {
-  val handler: HandlerConfig
-  val durationMilliseconds: Int
-  val maxToDisplay: Int
+  /**
+   * Timespan to consider duplicates. After this amount of time, duplicate entries will be logged
+   * again.
+   */
+  var durationMilliseconds: Int = 0
+
+  /**
+   * Maximum duplicate log entries to pass before suppressing them.
+   */
+  var maxToDisplay: Int = Int.MaxValue
+
+  /**
+   * Wrapped handler.
+   */
+  var handler: HandlerConfig = null
 
   def apply() = new ThrottledHandler(handler(), durationMilliseconds, maxToDisplay)
 }
 
 abstract class FileHandlerConfig extends HandlerConfig {
-  val filename: String
-  val roll: Policy
-  val append: Boolean = true
-  val rotateCount: Int = -1
+  /**
+   * Filename to log to.
+   */
+  var filename: String = null
+
+  /**
+   * When to roll the logfile.
+   */
+  var roll: Policy = Policy.Never
+
+  /**
+   * Append to an existing logfile, or truncate it?
+   */
+  var append: Boolean = true
+
+  /**
+   * How many rotated logfiles to keep around, maximum. -1 means to keep them all.
+   */
+  var rotateCount: Int = -1
 
   def apply() = new FileHandler(filename, roll, append, rotateCount, formatter())
 }
 
 abstract class SyslogHandlerConfig extends HandlerConfig {
-  val server: String
+  /**
+   * Syslog server hostname.
+   */
+  var server: String = "localhost"
 
-  def apply() = new SyslogHandler(server, formatter())
+  /**
+   * Syslog server port.
+   */
+  var port: Int = SyslogHandler.DEFAULT_PORT
+
+  def apply() = new SyslogHandler(server, port, formatter())
 }
 
 class ScribeHandlerConfig extends HandlerConfig {
   // send a scribe message no more frequently than this:
-  val bufferTimeMilliseconds = 100
+  var bufferTimeMilliseconds = 100
 
   // don't connect more frequently than this (when the scribe server is down):
-  val connectBackoffMilliseconds = 15000
+  var connectBackoffMilliseconds = 15000
 
-  val maxMessagesPerTransaction = 1000
-  val maxMessagesToBuffer = 10000
+  var maxMessagesPerTransaction = 1000
+  var maxMessagesToBuffer = 10000
 
-  val hostname = "localhost"
-  val port = 1463
-  val category = "scala"
+  var hostname = "localhost"
+  var port = 1463
+  var category = "scala"
 
   def apply() = new ScribeHandler(hostname, port, category, bufferTimeMilliseconds,
     connectBackoffMilliseconds, maxMessagesPerTransaction, maxMessagesToBuffer, formatter())

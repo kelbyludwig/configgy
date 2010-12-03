@@ -24,19 +24,19 @@ import extensions._
 
 class FormatterSpec extends Specification {
   val utcConfig = new FormatterConfig {
-    override val timezone = Some("UTC")
+    timezone = "UTC"
   }
   val fullPackageConfig = new FormatterConfig {
-    override val timezone = Some("UTC")
-    override val useFullPackageNames = true
+    timezone = "UTC"
+    useFullPackageNames = true
   }
   val prefixConfig = new FormatterConfig {
-    override val timezone = Some("UTC")
-    override val prefix = "%2$s <HH:mm> %1$.4s "
+    timezone = "UTC"
+    prefix = "%2$s <HH:mm> %1$.4s "
   }
   val truncateConfig = new FormatterConfig {
-    override val timezone = Some("UTC")
-    override val truncateAt = 30
+    timezone = "UTC"
+    truncateAt = 30
   }
 
   val record1 = new javalog.LogRecord(Level.ERROR, "boo.")

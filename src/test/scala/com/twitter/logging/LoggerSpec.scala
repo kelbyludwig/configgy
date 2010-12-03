@@ -24,10 +24,10 @@ import org.specs.Specification
 import config._
 
 class LoggerSpec extends Specification with TempFolder {
-  private var handler: Handler = null
+  private var myHandler: Handler = null
   private var log: Logger = null
 
-  val timeFrozenFormatter = new FormatterConfig { override val timezone = Some("UTC") }.apply()
+  val timeFrozenFormatter = new FormatterConfig { timezone = "UTC" }.apply()
   val timeFrozenHandler = new StringHandler(timeFrozenFormatter) {
     override def publish(record: javalog.LogRecord) = {
       record.setMillis(1206769996722L)
@@ -36,8 +36,8 @@ class LoggerSpec extends Specification with TempFolder {
   }
 
   private def parse(): List[String] = {
-    val rv = handler.asInstanceOf[StringHandler].get.split("\n")
-    handler.asInstanceOf[StringHandler].clear()
+    val rv = myHandler.asInstanceOf[StringHandler].get.split("\n")
+    myHandler.asInstanceOf[StringHandler].clear()
     rv.toList
   }
 
@@ -45,10 +45,10 @@ class LoggerSpec extends Specification with TempFolder {
     doBefore {
       Logger.clearHandlers
       timeFrozenHandler.clear()
-      handler = new StringHandler(BareFormatter)
+      myHandler = new StringHandler(BareFormatter)
       log = Logger.get("")
       log.setLevel(Level.ERROR)
-      log.addHandler(handler)
+      log.addHandler(myHandler)
     }
 
     "provide level name and value maps" in {
@@ -81,7 +81,7 @@ class LoggerSpec extends Specification with TempFolder {
 
     "log a message, with timestamp" in {
       Logger.clearHandlers
-      handler = timeFrozenHandler
+      myHandler = timeFrozenHandler
       log.addHandler(timeFrozenHandler)
       log.error("error!")
       parse() mustEqual List("ERR [20080329-05:53:16.722] (root): error!")
@@ -91,16 +91,16 @@ class LoggerSpec extends Specification with TempFolder {
       "file handler" in {
         withTempFolder {
           val config = new LoggerConfig {
-            override val node = "com.twitter"
-            override val level = Level.DEBUG
-            override val handlers = new FileHandlerConfig {
-              val filename = folderName + "/test.log"
-              val roll = Policy.Never
-              override val append = false
-              override val formatter = new FormatterConfig {
-                override val useFullPackageNames = true
-                override val truncateAt = 1024
-                override val prefix = "%s <HH:mm> %s"
+            node = "com.twitter"
+            level = Level.DEBUG
+            handlers = new FileHandlerConfig {
+              filename = folderName + "/test.log"
+              roll = Policy.Never
+              append = false
+              formatter = new FormatterConfig {
+                useFullPackageNames = true
+                truncateAt = 1024
+                prefix = "%s <HH:mm> %s"
               }
             } :: Nil
           }
@@ -123,13 +123,14 @@ class LoggerSpec extends Specification with TempFolder {
       "syslog handler" in {
         withTempFolder {
           val config = new LoggerConfig {
-            override val node = "com.twitter"
-            override val handlers = new SyslogHandlerConfig {
-              override val formatter = new SyslogFormatterConfig {
-                override val serverName = Some("elmo")
-                override val priority = 128
+            node = "com.twitter"
+            handlers = new SyslogHandlerConfig {
+              formatter = new SyslogFormatterConfig {
+                serverName = "elmo"
+                priority = 128
               }
-              val server = "example.com:212"
+              server = "example.com"
+              port = 212
             } :: Nil
           }
 
@@ -146,41 +147,41 @@ class LoggerSpec extends Specification with TempFolder {
 
       "complex config" in {
         withTempFolder {
-          val config = (new LoggerConfig {
-            override val level = Level.INFO
-            override val handlers = new ThrottledHandlerConfig {
-              val durationMilliseconds = 60000
-              val maxToDisplay = 10
-              val handler = new FileHandlerConfig {
-                val filename = folderName + "/production.log"
-                val roll = Policy.SigHup
-                override val formatter = new FormatterConfig {
-                  override val truncateStackTracesAt = 100
+          val config = new LoggerConfig {
+            level = Level.INFO
+            handlers = new ThrottledHandlerConfig {
+              durationMilliseconds = 60000
+              maxToDisplay = 10
+              handler = new FileHandlerConfig {
+                filename = folderName + "/production.log"
+                roll = Policy.SigHup
+                formatter = new FormatterConfig {
+                  truncateStackTracesAt = 100
                 }
               }
-            } :: Nil
-          }) :: (new LoggerConfig {
-            override val node = "w3c"
-            override val level = Level.OFF
-            override val useParents = false
-          }) :: (new LoggerConfig {
-            override val node = "stats"
-            override val level = Level.INFO
-            override val useParents = false
-            override val handlers = new ScribeHandlerConfig {
-              override val formatter = BareFormatterConfig
-              override val maxMessagesToBuffer = 100
-              override val category = "cuckoo_json"
-            } :: Nil
-          }) :: (new LoggerConfig {
-            override val node = "bad_jobs"
-            override val level = Level.INFO
-            override val useParents = false
-            override val handlers = new FileHandlerConfig {
-              val filename = folderName + "/bad_jobs.log"
-              val roll = Policy.Never
-            } :: Nil
-          }) :: Nil
+            }
+          } :: new LoggerConfig {
+            node = "w3c"
+            level = Level.OFF
+            useParents = false
+          } :: new LoggerConfig {
+            node = "stats"
+            level = Level.INFO
+            useParents = false
+            handlers = new ScribeHandlerConfig {
+              formatter = BareFormatterConfig
+              maxMessagesToBuffer = 100
+              category = "cuckoo_json"
+            }
+          } :: new LoggerConfig {
+            node = "bad_jobs"
+            level = Level.INFO
+            useParents = false
+            handlers = new FileHandlerConfig {
+              filename = folderName + "/bad_jobs.log"
+              roll = Policy.Never
+            }
+          } :: Nil
 
           Logger.configure(config)
           Logger.get("").getLevel mustEqual Level.INFO

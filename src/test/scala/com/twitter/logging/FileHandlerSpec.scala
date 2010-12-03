@@ -28,11 +28,11 @@ class FileHandlerSpec extends Specification with TempFolder {
   def config(_filename: String, _policy: Policy, _append: Boolean, _rotateCount: Int,
              _formatter: FormatterConfig): FileHandlerConfig = {
     new FileHandlerConfig {
-      val filename = folderName + "/" + _filename
-      override val formatter = _formatter
-      val roll = _policy
-      override val append = _append
-      override val rotateCount = _rotateCount
+      filename = folderName + "/" + _filename
+      formatter = _formatter
+      roll = _policy
+      append = _append
+      rotateCount = _rotateCount
     }
   }
 
@@ -116,7 +116,7 @@ class FileHandlerSpec extends Specification with TempFolder {
 
       "weekly" in {
         withTempFolder {
-          val formatter = new FormatterConfig { override val timezone = Some("GMT-7:00") }
+          val formatter = new FormatterConfig { timezone = "GMT-7:00" }
           val handler = config("test.log", Policy.Weekly(Calendar.SUNDAY), true, -1, formatter)()
           handler.computeNextRollTime(1250354734000L) mustEqual 1250406000000L
           handler.computeNextRollTime(1250404734000L) mustEqual 1250406000000L

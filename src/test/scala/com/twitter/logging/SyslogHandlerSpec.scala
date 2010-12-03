@@ -24,16 +24,6 @@ import config._
 import extensions._
 
 class SyslogHandlerSpec extends Specification {
-  def config(_server: String, _serverName: Option[String], _useIso: Boolean) = new SyslogHandlerConfig {
-    val server = _server
-    override val formatter = new SyslogFormatterConfig {
-      override val timezone = Some("UTC")
-      override val useIsoDateFormat = _useIso
-      override val serverName = _serverName
-      override val hostname = "raccoon.local"
-    }
-  }
-
   val record1 = new javalog.LogRecord(Level.FATAL, "fatal message!")
   record1.setLoggerName("net.lag.whiskey.Train")
   record1.setMillis(1206769996722L)
@@ -47,7 +37,13 @@ class SyslogHandlerSpec extends Specification {
       val serverSocket = new DatagramSocket
       val serverPort = serverSocket.getLocalPort
 
-      var syslog = config("localhost:" + serverPort, None, true)()
+      var syslog = new SyslogHandlerConfig {
+        port = serverPort
+        formatter = new SyslogFormatterConfig {
+          timezone = "UTC"
+          hostname = "raccoon.local"
+        }
+      }.apply()
       syslog.publish(record1)
       syslog.publish(record2)
 
@@ -64,7 +60,14 @@ class SyslogHandlerSpec extends Specification {
       val serverSocket = new DatagramSocket
       val serverPort = serverSocket.getLocalPort
 
-      var syslog = config("localhost:" + serverPort, Some("pingd"), true)()
+      var syslog = new SyslogHandlerConfig {
+        port = serverPort
+        formatter = new SyslogFormatterConfig {
+          serverName = "pingd"
+          timezone = "UTC"
+          hostname = "raccoon.local"
+        }
+      }.apply()
       syslog.publish(record1)
 
       Future.sync
@@ -78,7 +81,14 @@ class SyslogHandlerSpec extends Specification {
       val serverSocket = new DatagramSocket
       val serverPort = serverSocket.getLocalPort
 
-      var syslog = config("localhost:" + serverPort, None, false)()
+      var syslog = new SyslogHandlerConfig {
+        port = serverPort
+        formatter = new SyslogFormatterConfig {
+          useIsoDateFormat = false
+          timezone = "UTC"
+          hostname = "raccoon.local"
+        }
+      }.apply()
       syslog.publish(record1)
 
       Future.sync
