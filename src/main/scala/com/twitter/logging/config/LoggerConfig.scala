@@ -35,7 +35,7 @@ class LoggerConfig {
   /**
    * Where to send log messages.
    */
-  implicit val handlers: List[Handler] = Nil
+  implicit val handlers: List[HandlerConfig] = Nil
 
   /**
    * Override to have log messages stop at this node. Otherwise they are passed up to parent
@@ -86,31 +86,54 @@ class FormatterConfig {
    */
   val prefix = "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: "
 
-  def formatter = new Formatter(this)
+  def apply() = new Formatter(timezone, truncateAt, truncateStackTracesAt, useFullPackageNames,
+    prefix)
 }
 
-abstract class ThrottledHandlerConfig {
+object BasicFormatterConfig extends FormatterConfig {
+  override def apply() = BasicFormatter
+}
+
+object BareFormatterConfig extends FormatterConfig {
+  override def apply() = BareFormatter
+}
+
+abstract class SyslogFormatterConfig extends FormatterConfig {
+  val hostname = InetAddress.getLocalHost().getHostName()
+  val serverName: Option[String] = None
+  val useIsoDateFormat = true
+  val priority = SyslogHandler.PRIORITY_USER
+
+  override def apply() = new SyslogFormatter(hostname, serverName, useIsoDateFormat, priority,
+    timezone, truncateAt, truncateStackTracesAt)
+}
+
+trait HandlerConfig {
+  val formatter: FormatterConfig = BasicFormatterConfig
+
+  def apply(): Handler
+}
+
+abstract class ThrottledHandlerConfig extends HandlerConfig {
   val handler: Handler
   val durationMilliseconds: Int
   val maxToDisplay: Int
+
+  // FIXME: pass all the params instead of "this"
+  def apply() = new ThrottledHandler(this)
 }
 
-abstract class SyslogHandlerConfig extends FormatterConfig {
-  val useIsoDateFormat = true
-  val priority = SyslogHandler.PRIORITY_USER
-  val hostname = InetAddress.getLocalHost().getHostName()
-  val serverName: Option[String] = None
-  val server: String
-
-  def handler = new SyslogHandler(this)
-}
-
-abstract class FileHandlerConfig {
+abstract class FileHandlerConfig extends HandlerConfig {
   val filename: String
   val roll: Policy
-  val formatter: Formatter = BasicFormatter
   val append: Boolean
   val rotateCount: Int = -1
 
-  def handler = new FileHandler(this)
+  def apply() = new FileHandler(filename, roll, append, rotateCount, formatter())
+}
+
+abstract class SyslogHandlerConfig extends HandlerConfig {
+  val server: String
+
+  def apply() = new SyslogHandler(server, formatter())
 }

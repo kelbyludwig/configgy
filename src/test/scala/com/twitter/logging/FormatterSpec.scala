@@ -70,7 +70,7 @@ class FormatterSpec extends Specification {
     }
 
     "format a timestamp" in {
-      val formatter = new Formatter(utcConfig)
+      val formatter = utcConfig()
       formatter.format(record1) mustEqual "ERR [20080329-05:53:16.722] jobs: boo.\n"
     }
 
@@ -91,17 +91,17 @@ class FormatterSpec extends Specification {
     }
 
     "format package names" in {
-      new Formatter(utcConfig).format(record1) mustEqual "ERR [20080329-05:53:16.722] jobs: boo.\n"
-      new Formatter(fullPackageConfig).format(record1) mustEqual
+      utcConfig().format(record1) mustEqual "ERR [20080329-05:53:16.722] jobs: boo.\n"
+      fullPackageConfig().format(record1) mustEqual
         "ERR [20080329-05:53:16.722] com.example.jobs: boo.\n"
     }
 
     "handle other prefixes" in {
-      new Formatter(prefixConfig).format(record2) mustEqual "jobs 05:53 DEBU useless info.\n"
+      prefixConfig().format(record2) mustEqual "jobs 05:53 DEBU useless info.\n"
     }
 
     "truncate line" in {
-      new Formatter(truncateConfig).format(record3) mustEqual
+      truncateConfig().format(record3) mustEqual
         "CRI [20080329-05:53:16.722] whiskey: Something terrible happened th...\n"
     }
 

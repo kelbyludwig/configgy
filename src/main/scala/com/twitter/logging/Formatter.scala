@@ -53,11 +53,14 @@ private[logging] object Formatter {
  * are handled in this class. Subclasses are called for formatting the
  * line prefix, formatting the date, and determining the line terminator.
  */
-class Formatter(val config: FormatterConfig) extends javalog.Formatter {
+class Formatter(val timezone: Option[String], val truncateAt: Int, val truncateStackTracesAt: Int,
+                val useFullPackageNames: Boolean, val prefix: String)
+      extends javalog.Formatter {
 
-  def this() = this(new FormatterConfig)
+  // for default console logging.
+  def this() = this(None, 0, 30, false, "%.3s [<yyyyMMdd-HH:mm:ss.SSS>] %s: ")
 
-  private val matcher = Formatter.dateFormatRegex.matcher(config.prefix)
+  private val matcher = Formatter.dateFormatRegex.matcher(prefix)
 
   private val DATE_FORMAT = new SimpleDateFormat(if (matcher.find()) matcher.group(1) else "yyyyMMdd-HH:mm:ss.SSS")
   private val FORMAT = matcher.replaceFirst("%3\\$s")
@@ -70,8 +73,8 @@ class Formatter(val config: FormatterConfig) extends javalog.Formatter {
   /**
    * Calendar to use for time zone display in date-time formatting.
    */
-  val calendar = if (config.timezone.isDefined) {
-    new GregorianCalendar(TimeZone.getTimeZone(config.timezone.get))
+  val calendar = if (timezone.isDefined) {
+    new GregorianCalendar(TimeZone.getTimeZone(timezone.get))
   } else {
     new GregorianCalendar
   }
@@ -126,7 +129,7 @@ class Formatter(val config: FormatterConfig) extends javalog.Formatter {
       case n => {
         val nameSegments = n.split("\\.")
         if (nameSegments.length >= 2) {
-          if (config.useFullPackageNames) {
+          if (useFullPackageNames) {
             nameSegments.slice(0, nameSegments.length - 1).mkString(".")
           } else {
             nameSegments(nameSegments.length - 2)
@@ -139,8 +142,8 @@ class Formatter(val config: FormatterConfig) extends javalog.Formatter {
 
     var message = formatText(record)
 
-    if ((config.truncateAt > 0) && (message.length > config.truncateAt)) {
-      message = message.substring(0, config.truncateAt) + "..."
+    if ((truncateAt > 0) && (message.length > truncateAt)) {
+      message = message.substring(0, truncateAt) + "..."
     }
 
     // allow multi-line log entries to be atomic:
@@ -149,7 +152,7 @@ class Formatter(val config: FormatterConfig) extends javalog.Formatter {
 
     if (record.getThrown ne null) {
       lines += record.getThrown.toString
-      lines ++= Formatter.formatStackTrace(record.getThrown, config.truncateStackTracesAt)
+      lines ++= Formatter.formatStackTrace(record.getThrown, truncateStackTracesAt)
     }
     val prefix = formatPrefix(record.getLevel, dateFormat.format(new Date(record.getMillis)), name)
     lines.mkString(prefix, lineTerminator + prefix, lineTerminator)

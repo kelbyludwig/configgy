@@ -27,7 +27,7 @@ class LoggerSpec extends Specification with TempFolder {
   private var handler: Handler = null
   private var log: Logger = null
 
-  val timeFrozenFormatter = new Formatter(new FormatterConfig { override val timezone = Some("UTC") })
+  val timeFrozenFormatter = new FormatterConfig { override val timezone = Some("UTC") }.apply()
   val timeFrozenHandler = new StringHandler(timeFrozenFormatter) {
     override def publish(record: javalog.LogRecord) = {
       record.setMillis(1206769996722L)
@@ -101,8 +101,8 @@ class LoggerSpec extends Specification with TempFolder {
                 override val useFullPackageNames = true
                 override val truncateAt = 1024
                 override val prefix = "%s <HH:mm> %s"
-              }.formatter
-            }.handler :: Nil
+              }
+            } :: Nil
           }
 
           val log = Logger.configure(config)
@@ -110,13 +110,13 @@ class LoggerSpec extends Specification with TempFolder {
           log.getLevel mustEqual Level.DEBUG
           log.getHandlers().length mustEqual 1
           val handler = log.getHandlers()(0).asInstanceOf[FileHandler]
-          handler.config.filename mustEqual folderName + "/test.log"
-          handler.config.append mustEqual false
-          val formatter = handler.config.formatter
+          handler.filename mustEqual folderName + "/test.log"
+          handler.append mustEqual false
+          val formatter = handler.formatter
           formatter.formatPrefix(javalog.Level.WARNING, "10:55", "hello") mustEqual "WARNING 10:55 hello"
           log.name mustEqual "com.twitter"
-          formatter.config.truncateAt mustEqual 1024
-          formatter.config.useFullPackageNames mustEqual true
+          formatter.truncateAt mustEqual 1024
+          formatter.useFullPackageNames mustEqual true
         }
       }
 
@@ -125,10 +125,12 @@ class LoggerSpec extends Specification with TempFolder {
           val config = new LoggerConfig {
             override val node = "com.twitter"
             override val handlers = new SyslogHandlerConfig {
+              override val formatter = new SyslogFormatterConfig {
+                override val serverName = Some("elmo")
+                override val priority = 128
+              }
               val server = "example.com:212"
-              override val serverName = Some("elmo")
-              override val priority = 128
-            }.handler :: Nil
+            } :: Nil
           }
 
           val log = Logger.configure(config)
@@ -136,8 +138,9 @@ class LoggerSpec extends Specification with TempFolder {
           val h = log.getHandlers()(0).asInstanceOf[SyslogHandler]
           h.dest.asInstanceOf[InetSocketAddress].getHostName mustEqual "example.com"
           h.dest.asInstanceOf[InetSocketAddress].getPort mustEqual 212
-          h.config.serverName mustEqual Some("elmo")
-          h.config.priority mustEqual 128
+          val formatter = h.formatter.asInstanceOf[SyslogFormatter]
+          formatter.serverName mustEqual Some("elmo")
+          formatter.priority mustEqual 128
         }
       }
       /*

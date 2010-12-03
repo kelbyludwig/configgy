@@ -35,14 +35,16 @@ object Policy {
  * A log handler that writes log entries into a file, and rolls this file
  * at a requested interval (hourly, daily, or weekly).
  */
-class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatter) {
+class FileHandler(val filename: String, rollPolicy: Policy, val append: Boolean, rotateCount: Int,
+                  formatter: Formatter)
+      extends Handler(formatter) {
   private var stream: Writer = null
   private var openTime: Long = 0
   private var nextRollTime: Long = 0
 
   openLog()
 
-  if (config.roll == Policy.SigHup) {
+  if (rollPolicy == Policy.SigHup) {
     HandleSignal("HUP") { signal =>
       val oldStream = stream
       synchronized {
@@ -66,9 +68,9 @@ class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatte
   }
 
   private def openWriter() = {
-    val dir = new File(config.filename).getParentFile
+    val dir = new File(filename).getParentFile
     if ((dir ne null) && !dir.exists) dir.mkdirs
-    new OutputStreamWriter(new FileOutputStream(config.filename, config.append), "UTF-8")
+    new OutputStreamWriter(new FileOutputStream(filename, append), "UTF-8")
   }
 
   private def openLog() = {
@@ -81,14 +83,14 @@ class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatte
    * Compute the suffix for a rolled logfile, based on the roll policy.
    */
   def timeSuffix(date: Date) = {
-    val dateFormat = config.roll match {
+    val dateFormat = rollPolicy match {
       case Policy.Never => new SimpleDateFormat("yyyy")
       case Policy.SigHup => new SimpleDateFormat("yyyy")
       case Policy.Hourly => new SimpleDateFormat("yyyyMMdd-HH")
       case Policy.Daily => new SimpleDateFormat("yyyyMMdd")
       case Policy.Weekly(_) => new SimpleDateFormat("yyyyMMdd")
     }
-    dateFormat.setCalendar(config.formatter.calendar)
+    dateFormat.setCalendar(formatter.calendar)
     dateFormat.format(date)
   }
 
@@ -97,12 +99,12 @@ class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatte
    * logfile roll.
    */
   def computeNextRollTime(now: Long): Long = {
-    val next = config.formatter.calendar.clone.asInstanceOf[Calendar]
+    val next = formatter.calendar.clone.asInstanceOf[Calendar]
     next.setTimeInMillis(now)
     next.set(Calendar.MILLISECOND, 0)
     next.set(Calendar.SECOND, 0)
     next.set(Calendar.MINUTE, 0)
-    config.roll match {
+    rollPolicy match {
       case Policy.Never =>
         next.add(Calendar.YEAR, 100)
       case Policy.SigHup =>
@@ -128,12 +130,12 @@ class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatte
    * This duplicates logrotate's "rotate count" option.
    */
   private def removeOldFiles() = {
-    val rotateCountPlusOne = config.rotateCount + 1  // Because the new file is already open.
+    val rotateCountPlusOne = rotateCount + 1  // Because the new file is already open.
     if (rotateCountPlusOne >= 1) {
-      val filesInLogDir = new File(config.filename).getParentFile().list()
-      val filteredFilesInLogDir = filesInLogDir.filter(f => f.startsWith(new File(config.filename).getName()))
-      if (filteredFilesInLogDir.length > config.rotateCount) {
-        for (i <- config.rotateCount.until(filteredFilesInLogDir.length)) {
+      val filesInLogDir = new File(filename).getParentFile().list()
+      val filteredFilesInLogDir = filesInLogDir.filter(f => f.startsWith(new File(filename).getName()))
+      if (filteredFilesInLogDir.length > rotateCount) {
+        for (i <- rotateCount.until(filteredFilesInLogDir.length)) {
           new File(filteredFilesInLogDir(i)).delete()
         }
       }
@@ -142,13 +144,13 @@ class FileHandler(val config: FileHandlerConfig) extends Handler(config.formatte
 
   def roll() = {
     stream.close()
-    val n = config.filename.lastIndexOf('.')
+    val n = filename.lastIndexOf('.')
     val newFilename = if (n > 0) {
-      config.filename.substring(0, n) + "-" + timeSuffix(new Date(openTime)) + config.filename.substring(n)
+      filename.substring(0, n) + "-" + timeSuffix(new Date(openTime)) + filename.substring(n)
     } else {
-      config.filename + "-" + timeSuffix(new Date(openTime))
+      filename + "-" + timeSuffix(new Date(openTime))
     }
-    new File(config.filename).renameTo(new File(newFilename))
+    new File(filename).renameTo(new File(newFilename))
     openLog()
     removeOldFiles()
   }

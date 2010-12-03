@@ -25,8 +25,8 @@ import config._
 import extensions._
 
 class FileHandlerSpec extends Specification with TempFolder {
-  def config(_filename: String, _policy: Policy, _append: Boolean, _formatter: Formatter,
-             _rotateCount: Int): FileHandlerConfig = {
+  def config(_filename: String, _policy: Policy, _append: Boolean, _rotateCount: Int,
+             _formatter: FormatterConfig): FileHandlerConfig = {
     new FileHandlerConfig {
       val filename = folderName + "/" + _filename
       override val formatter = _formatter
@@ -54,7 +54,7 @@ class FileHandlerSpec extends Specification with TempFolder {
         f.write("hello!\n")
         f.close
 
-        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, -1))
+        val handler = config("test.log", Policy.Hourly, true, -1, BareFormatterConfig)()
         handler.publish(record1)
 
         val f2 = reader("test.log")
@@ -66,7 +66,7 @@ class FileHandlerSpec extends Specification with TempFolder {
         f.write("hello!\n")
         f.close
 
-        val handler = new FileHandler(config("test.log", Policy.Hourly, false, BareFormatter, -1))
+        val handler = config("test.log", Policy.Hourly, false, -1, BareFormatterConfig)()
         handler.publish(record1)
 
         val f2 = reader("test.log")
@@ -81,7 +81,7 @@ class FileHandlerSpec extends Specification with TempFolder {
         val raiseMethod = signalClass.getMethod("raise", signalClass)
 
         withTempFolder {
-          val handler = new FileHandler(config("new.log", Policy.SigHup, true, BareFormatter, -1))
+          val handler = config("new.log", Policy.SigHup, true, -1, BareFormatterConfig)()
 
           val logFile = new File(folderName, "new.log")
           logFile.renameTo(new File(folderName, "old.log"))
@@ -107,7 +107,7 @@ class FileHandlerSpec extends Specification with TempFolder {
     "roll logs on time" in {
       "hourly" in {
         withTempFolder {
-          val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, -1))
+          val handler = config("test.log", Policy.Hourly, true, -1, BareFormatterConfig)()
           handler.computeNextRollTime(1206769996722L) mustEqual 1206770400000L
           handler.computeNextRollTime(1206770400000L) mustEqual 1206774000000L
           handler.computeNextRollTime(1206774000001L) mustEqual 1206777600000L
@@ -116,8 +116,8 @@ class FileHandlerSpec extends Specification with TempFolder {
 
       "weekly" in {
         withTempFolder {
-          val formatter = new Formatter(new FormatterConfig { override val timezone = Some("GMT-7:00") })
-          val handler = new FileHandler(config("test.log", Policy.Weekly(Calendar.SUNDAY), true, formatter, -1))
+          val formatter = new FormatterConfig { override val timezone = Some("GMT-7:00") }
+          val handler = config("test.log", Policy.Weekly(Calendar.SUNDAY), true, -1, formatter)()
           handler.computeNextRollTime(1250354734000L) mustEqual 1250406000000L
           handler.computeNextRollTime(1250404734000L) mustEqual 1250406000000L
           handler.computeNextRollTime(1250406001000L) mustEqual 1251010800000L
@@ -130,7 +130,7 @@ class FileHandlerSpec extends Specification with TempFolder {
     // verify that at the proper time, the log file rolls and resets.
     "roll logs into new files" in {
       withTempFolder {
-        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, -1)) {
+        val handler = new FileHandler(folderName + "/test.log", Policy.Hourly, true, -1, BareFormatter) {
           override def computeNextRollTime(): Long = System.currentTimeMillis + 100
         }
         handler.publish(record1)
@@ -149,7 +149,7 @@ class FileHandlerSpec extends Specification with TempFolder {
       withTempFolder {
         new File(folderName).list().length mustEqual 0
 
-        val handler = new FileHandler(config("test.log", Policy.Hourly, true, BareFormatter, 2))
+        val handler = config("test.log", Policy.Hourly, true, 2, BareFormatterConfig)()
         handler.publish(record1)
         new File(folderName).list().length mustEqual 1
         handler.roll()

@@ -222,7 +222,7 @@ object Logger extends Iterable[Logger] {
    */
   def reset() = {
     clearHandlers()
-    javaRoot.addHandler(new ConsoleHandler(new Formatter(new FormatterConfig)))
+    javaRoot.addHandler(new ConsoleHandler(new Formatter()))
   }
 
   /**
@@ -304,11 +304,12 @@ object Logger extends Iterable[Logger] {
 
   def configure(config: LoggerConfig) = {
     val logger = get(config.node)
+    val handlers = config.handlers.map { _() }
     if (config.level ne null) {
-      config.handlers.foreach { _.setLevel(config.level) }
+      handlers.foreach { _.setLevel(config.level) }
       logger.setLevel(config.level)
     }
-    config.handlers.foreach { logger.addHandler(_) }
+    handlers.foreach { logger.addHandler(_) }
     logger
   }
 }

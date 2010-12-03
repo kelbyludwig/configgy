@@ -71,8 +71,11 @@ object SyslogHandler {
   val OLD_SYSLOG_DATE_FORMAT = new SimpleDateFormat("MMM dd HH:mm:ss")
 }
 
-class SyslogFormatter(config: SyslogHandlerConfig) extends Formatter(config) {
-  override def dateFormat = if (config.useIsoDateFormat) {
+class SyslogFormatter(val hostname: String, val serverName: Option[String],
+                      val useIsoDateFormat: Boolean, val priority: Int,
+                      timezone: Option[String], truncateAt: Int, truncateStackTracesAt: Int)
+      extends Formatter(timezone, truncateAt, truncateStackTracesAt, false, "") {
+  override def dateFormat = if (useIsoDateFormat) {
     SyslogHandler.ISO_DATE_FORMAT
   } else {
     SyslogHandler.OLD_SYSLOG_DATE_FORMAT
@@ -85,18 +88,18 @@ class SyslogFormatter(config: SyslogHandlerConfig) extends Formatter(config) {
       case x: Level => SyslogHandler.severityForLogLevel(x.value)
       case x: javalog.Level => SyslogHandler.severityForLogLevel(x.intValue)
     }
-    config.serverName match {
+    serverName match {
       case None =>
-        "<%d>%s %s %s: ".format(config.priority | syslogLevel, date, config.hostname, name)
+        "<%d>%s %s %s: ".format(priority | syslogLevel, date, hostname, name)
       case Some(serverName) =>
-        "<%d>%s %s [%s] %s: ".format(config.priority | syslogLevel, date, config.hostname, serverName, name)
+        "<%d>%s %s [%s] %s: ".format(priority | syslogLevel, date, hostname, serverName, name)
     }
   }
 }
 
-class SyslogHandler(val config: SyslogHandlerConfig) extends Handler(new SyslogFormatter(config)) {
+class SyslogHandler(val server: String, formatter: Formatter) extends Handler(formatter) {
   private val socket = new DatagramSocket
-  private[logging] val dest: SocketAddress = config.server.split(":", 2).toList match {
+  private[logging] val dest: SocketAddress = server.split(":", 2).toList match {
     case host :: port :: Nil => new InetSocketAddress(host, port.toInt)
     case host :: Nil => new InetSocketAddress(host, SyslogHandler.DEFAULT_PORT)
     case _ => null

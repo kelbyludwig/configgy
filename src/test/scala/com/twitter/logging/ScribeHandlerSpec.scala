@@ -24,7 +24,7 @@ import config._
 import extensions._
 
 class ScribeHandlerSpec extends Specification {
-  val utcFormatter = new Formatter(new FormatterConfig { override val timezone = Some("UTC") })
+  val utcFormatter = new FormatterConfig { override val timezone = Some("UTC") }.apply()
 
   def config(time: Int, max: Int, _formatter: Formatter) = new ScribeHandlerConfig {
     override val formatter = _formatter

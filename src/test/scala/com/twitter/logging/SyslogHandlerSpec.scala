@@ -25,11 +25,13 @@ import extensions._
 
 class SyslogHandlerSpec extends Specification {
   def config(_server: String, _serverName: Option[String], _useIso: Boolean) = new SyslogHandlerConfig {
-    override val timezone = Some("UTC")
-    override val useIsoDateFormat = _useIso
     val server = _server
-    override val serverName = _serverName
-    override val hostname = "raccoon.local"
+    override val formatter = new SyslogFormatterConfig {
+      override val timezone = Some("UTC")
+      override val useIsoDateFormat = _useIso
+      override val serverName = _serverName
+      override val hostname = "raccoon.local"
+    }
   }
 
   val record1 = new javalog.LogRecord(Level.FATAL, "fatal message!")
@@ -45,7 +47,7 @@ class SyslogHandlerSpec extends Specification {
       val serverSocket = new DatagramSocket
       val serverPort = serverSocket.getLocalPort
 
-      var syslog = new SyslogHandler(config("localhost:" + serverPort, None, true))
+      var syslog = config("localhost:" + serverPort, None, true)()
       syslog.publish(record1)
       syslog.publish(record2)
 
@@ -62,7 +64,7 @@ class SyslogHandlerSpec extends Specification {
       val serverSocket = new DatagramSocket
       val serverPort = serverSocket.getLocalPort
 
-      var syslog = new SyslogHandler(config("localhost:" + serverPort, Some("pingd"), true))
+      var syslog = config("localhost:" + serverPort, Some("pingd"), true)()
       syslog.publish(record1)
 
       Future.sync
@@ -76,7 +78,7 @@ class SyslogHandlerSpec extends Specification {
       val serverSocket = new DatagramSocket
       val serverPort = serverSocket.getLocalPort
 
-      var syslog = new SyslogHandler(config("localhost:" + serverPort, None, false))
+      var syslog = config("localhost:" + serverPort, None, false)()
       syslog.publish(record1)
 
       Future.sync
