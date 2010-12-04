@@ -21,7 +21,7 @@ import java.util.{logging => javalog}
 import scala.collection.mutable
 import config._
 
-class ThrottledHandler(handler: Handler, durationMilliseconds: Int, maxToDisplay: Int)
+class ThrottledHandler(val handler: Handler, val durationMilliseconds: Int, val maxToDisplay: Int)
       extends Handler(handler.formatter) {
   private class Throttle(now: Long) {
     var startTime: Long = now

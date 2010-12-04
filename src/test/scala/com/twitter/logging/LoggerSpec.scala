@@ -189,6 +189,7 @@ class LoggerSpec extends Specification with TempFolder {
           Logger.get("stats").getLevel mustEqual Level.INFO
           Logger.get("bad_jobs").getLevel mustEqual Level.INFO
           Logger.get("").getHandlers()(0) must haveClass[ThrottledHandler]
+          Logger.get("").getHandlers()(0).asInstanceOf[ThrottledHandler].handler must haveClass[FileHandler]
           Logger.get("w3c").getHandlers().size mustEqual 0
           Logger.get("stats").getHandlers()(0) must haveClass[ScribeHandler]
           Logger.get("bad_jobs").getHandlers()(0) must haveClass[FileHandler]
