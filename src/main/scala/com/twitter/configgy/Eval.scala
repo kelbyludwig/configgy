@@ -154,6 +154,8 @@ object Eval {
       }
 
       override def reset {
+        // grumpy comment about these side-effect methods not taking parens.
+        super.reset
         messages.clear()
       }
     }
