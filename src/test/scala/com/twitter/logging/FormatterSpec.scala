@@ -19,8 +19,8 @@ package logging
 
 import java.util.{logging => javalog}
 import org.specs.Specification
+import com.twitter.conversions.string._
 import config._
-import extensions._
 
 class FormatterSpec extends Specification {
   val utcConfig = new FormatterConfig {

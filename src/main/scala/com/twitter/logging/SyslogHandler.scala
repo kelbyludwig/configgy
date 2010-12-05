@@ -22,8 +22,8 @@ import java.util.{logging => javalog}
 import java.text.SimpleDateFormat
 import scala.actors._
 import scala.actors.Actor._
+import com.twitter.conversions.string._
 import config._
-import extensions._
 
 object SyslogHandler {
   val DEFAULT_PORT = 514

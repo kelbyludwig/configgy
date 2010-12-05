@@ -18,7 +18,7 @@ package com.twitter.logging
 
 import java.net.InetSocketAddress
 import java.util.{logging => javalog}
-import com.twitter.extensions._
+import com.twitter.conversions.string._
 import com.twitter.TempFolder
 import org.specs.Specification
 import config._

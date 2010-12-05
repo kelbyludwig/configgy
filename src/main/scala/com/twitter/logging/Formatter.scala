@@ -21,9 +21,9 @@ import java.text.SimpleDateFormat
 import java.util.{Date, GregorianCalendar, TimeZone, logging => javalog}
 import java.util.regex.Pattern
 import scala.collection.mutable
+import com.twitter.conversions.string._
 import com.twitter.json.Json
 import config._
-import extensions._
 
 private[logging] object Formatter {
   // FIXME: might be nice to unmangle some scala names here.

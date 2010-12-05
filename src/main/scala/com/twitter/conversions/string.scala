@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.twitter
+package com.twitter.conversions
 
 import scala.util.matching.Regex
 
@@ -149,7 +149,7 @@ final class ConfiggyByteArray(wrapped: Array[Byte]) {
 }
 
 
-object extensions {
+object string {
   implicit def stringToConfiggyString(s: String): ConfiggyString = new ConfiggyString(s)
   implicit def byteArrayToConfiggyByteArray(b: Array[Byte]): ConfiggyByteArray = new ConfiggyByteArray(b)
 }

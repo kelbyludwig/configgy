@@ -20,8 +20,8 @@ package logging
 import java.net.{DatagramPacket, DatagramSocket, InetSocketAddress}
 import java.util.{logging => javalog}
 import org.specs.Specification
+import com.twitter.conversions.string._
 import config._
-import extensions._
 
 class ScribeHandlerSpec extends Specification {
   def config(time: Int, max: Int, _formatter: FormatterConfig) = new ScribeHandlerConfig {

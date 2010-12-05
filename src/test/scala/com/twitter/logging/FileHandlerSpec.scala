@@ -20,9 +20,9 @@ package logging
 import java.io._
 import java.util.{Calendar, Date}
 import java.util.{logging => javalog}
+import com.twitter.conversions.string._
 import org.specs.Specification
 import config._
-import extensions._
 
 class FileHandlerSpec extends Specification with TempFolder {
   def config(_filename: String, _policy: Policy, _append: Boolean, _rotateCount: Int,

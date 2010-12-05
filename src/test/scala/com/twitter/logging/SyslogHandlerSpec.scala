@@ -19,9 +19,9 @@ package logging
 
 import java.net.{DatagramPacket, DatagramSocket, InetSocketAddress}
 import java.util.{logging => javalog}
+import com.twitter.conversions.string._
 import org.specs.Specification
 import config._
-import extensions._
 
 class SyslogHandlerSpec extends Specification {
   val record1 = new javalog.LogRecord(Level.FATAL, "fatal message!")
