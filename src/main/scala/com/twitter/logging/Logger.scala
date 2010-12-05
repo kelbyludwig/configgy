@@ -20,6 +20,7 @@ package logging
 import java.util.{Calendar, logging => javalog}
 import scala.collection.{Map, mutable}
 import config._
+import configgy.Eval
 
 // replace java's ridiculous log levels with the standard ones.
 sealed abstract class Level(val name: String, val value: Int) extends javalog.Level(name, value) {
@@ -222,7 +223,7 @@ object Logger extends Iterable[Logger] {
    */
   def reset() = {
     clearHandlers()
-    javaRoot.addHandler(new ConsoleHandler(new Formatter()))
+    javaRoot.addHandler(new ConsoleHandler(new Formatter(), None))
   }
 
   /**
@@ -305,11 +306,16 @@ object Logger extends Iterable[Logger] {
   def configure(config: LoggerConfig) = {
     val logger = get(config.node)
     val handlers = config.handlers.map { _() }
-    if (config.level ne null) {
-      handlers.foreach { _.setLevel(config.level) }
-      logger.setLevel(config.level)
-    }
+    config.level.foreach { x => logger.setLevel(x) }
     handlers.foreach { logger.addHandler(_) }
     logger
+  }
+
+  def configure(code: String) {
+    Eval[AnyRef](code) match {
+      case x: LoggerConfig => configure(x)
+      case x: List[_] => configure(x.asInstanceOf[List[LoggerConfig]])
+      case x => throw new Exception("Got " + x + " instead of LoggerConfig")
+    }
   }
 }

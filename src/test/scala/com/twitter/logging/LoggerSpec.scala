@@ -28,7 +28,7 @@ class LoggerSpec extends Specification with TempFolder {
   private var log: Logger = null
 
   val timeFrozenFormatter = new FormatterConfig { timezone = "UTC" }.apply()
-  val timeFrozenHandler = new StringHandler(timeFrozenFormatter) {
+  val timeFrozenHandler = new StringHandler(timeFrozenFormatter, None) {
     override def publish(record: javalog.LogRecord) = {
       record.setMillis(1206769996722L)
       super.publish(record)
@@ -45,7 +45,7 @@ class LoggerSpec extends Specification with TempFolder {
     doBefore {
       Logger.clearHandlers
       timeFrozenHandler.clear()
-      myHandler = new StringHandler(BareFormatter)
+      myHandler = new StringHandler(BareFormatter, None)
       log = Logger.get("")
       log.setLevel(Level.ERROR)
       log.addHandler(myHandler)
@@ -195,26 +195,47 @@ class LoggerSpec extends Specification with TempFolder {
           Logger.get("bad_jobs").getHandlers()(0) must haveClass[FileHandler]
         }
       }
-      /*
 
-      withTempFolder {
-        // FIXME failing test to configure throttling
-        val TEST_DATA =
-          "node=\"net.lag\"\n" +
-          "console on\n" +
-          "throttle_period_msec=100\n" +
-          "throttle_rate=10\n"
+      "from string" in {
+        "correct" in {
+          withTempFolder {
+            val config = """
+              import com.twitter.logging.config._
+              val folderName = """" + folderName + """"
+              new LoggerConfig {
+                node = "com.twitter"
+                level = Level.DEBUG
+                handlers = new FileHandlerConfig {
+                  filename = folderName + "/test.log"
+                }
+              }
+            """
+            try {
+              Logger.configure(config)
+            } catch {
+              case e: com.twitter.configgy.Eval.CompilerException =>
+                e.messages.flatten.foreach { x => println(x) }
+                throw e
+            }
+            val log = Logger.get("com.twitter")
+            log.getLevel mustEqual Level.DEBUG
+            log.getHandlers().length mustEqual 1
+            val handler = log.getHandlers()(0).asInstanceOf[FileHandler]
+            handler.filename mustEqual folderName + "/test.log"
+          }
+        }
 
-        val c = new Config
-        c.load(TEST_DATA)
-        val log = Logger.configure(c, false, true)
-
-        log.getHandlers.length mustEqual 1
-        val h = log.getHandlers()(0).asInstanceOf[ThrottledHandler]
-        h.durationMilliseconds mustEqual 100
-        h.maxToDisplay mustEqual 10
+        "with error" in {
+          val config = """
+            import com.twitter.logging.config._
+            new LoggerConfig {
+              node = "com.twitter"
+              bogus = 3
+            }
+          """
+          Logger.configure(config) must throwA[Exception]
+        }
       }
-      */
     }
 
 
@@ -255,60 +276,3 @@ class LoggerSpec extends Specification with TempFolder {
 
   }
 }
-
-
-
-/*
-
-import _root_.java.util.{Calendar, Date, TimeZone, logging => javalog}
-import _root_.net.lag.configgy.Config
-import _root_.net.lag.extensions._
-
-
-
-
-
-
-class TimeWarpingFileHandler(filename: String, policy: Policy, append: Boolean, handleSighup: Boolean)
-  extends FileHandler(filename, policy, new FileFormatter, append, handleSighup) {
-  formatter.timeZone = "GMT"
-
-  override def publish(record: javalog.LogRecord) = {
-    record.setMillis(1206769996722L)
-    super.publish(record)
-  }
-}
-
-class ImmediatelyRollingFileHandler(filename: String, policy: Policy, append: Boolean)
-      extends TimeWarpingFileHandler(filename, policy, append, false) {
-  formatter.timeZone = "GMT"
-
-  override def computeNextRollTime(): Long = System.currentTimeMillis + 100
-}
-
-
-
-
-  "Logging" should {
-
-
-CONFIG
-
-
-
-    "handle config errors" in {
-      // should throw an exception because of the unknown attribute
-      val TEST_DATA =
-        "filename=\"foobar.log\"\n" +
-        "level=\"debug\"\n" +
-        "style=\"html\"\n"
-
-      val c = new Config
-      c.load(TEST_DATA)
-      Logger.configure(c, false, false) must throwA(new LoggingException("Unknown logging config attribute(s): style"))
-    }
-
-
-}
-
-*/
