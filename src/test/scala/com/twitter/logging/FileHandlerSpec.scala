@@ -163,6 +163,5 @@ class FileHandlerSpec extends Specification with TempFolder {
         handler.close()
       }
     }
-
   }
 }

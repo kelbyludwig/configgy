@@ -97,6 +97,7 @@ class LoggerSpec extends Specification with TempFolder {
               filename = folderName + "/test.log"
               roll = Policy.Never
               append = false
+              level = Level.INFO
               formatter = new FormatterConfig {
                 useFullPackageNames = true
                 truncateAt = 1024
@@ -112,6 +113,7 @@ class LoggerSpec extends Specification with TempFolder {
           val handler = log.getHandlers()(0).asInstanceOf[FileHandler]
           handler.filename mustEqual folderName + "/test.log"
           handler.append mustEqual false
+          handler.getLevel mustEqual Level.INFO
           val formatter = handler.formatter
           formatter.formatPrefix(javalog.Level.WARNING, "10:55", "hello") mustEqual "WARNING 10:55 hello"
           log.name mustEqual "com.twitter"
@@ -237,42 +239,5 @@ class LoggerSpec extends Specification with TempFolder {
         }
       }
     }
-
-
-/*
-    "set two handlers on the same logger without resetting the level" in {
-      val config = new LoggerConfig {
-        override val level = Level.DEBUG
-        override val handlers = new FileHandlerConfig {
-          val filename = "foobar.log"
-          val policy = Policy.Never
-          val append = true
-        }
-      } :: new LoggerConfig {
-        override val level = Level.FATAL
-        override val handlers = new ScribeHandlerConfig {
-          override val hostname = "fake"
-          override val port = 8080
-        }
-      }
-
-      val TEST_DATA =
-        "filename=\"foobar.log\"\n" +
-        "level=\"debug\"\n" +
-        "scribe {\n" +
-        "  scribe_server = \"fake:8080\"\n" +
-        "  level=\"fatal\"\n" +
-        "}\n"
-      val log1 = Logger.configure(c, false, true)
-      val log2 = Logger.configure(c.configMap("scribe"), false, false)
-      log1.getLevel mustEqual Logger.DEBUG
-      log2.getLevel mustEqual Logger.DEBUG
-      log1.getHandlers()(0) must haveClass[FileHandler]
-      log1.getHandlers()(0).getLevel mustEqual Logger.DEBUG
-      log1.getHandlers()(1) must haveClass[ScribeHandler]
-      log1.getHandlers()(1).getLevel mustEqual Logger.FATAL
-    }
-*/
-
   }
 }
