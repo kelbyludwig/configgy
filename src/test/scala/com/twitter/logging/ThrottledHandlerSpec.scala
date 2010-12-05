@@ -26,7 +26,7 @@ class ThrottledHandlerSpec extends Specification with TempFolder {
   "ThrottledHandler" should {
     doBefore {
       Logger.clearHandlers
-      handler = new StringHandler(BareFormatter)
+      handler = new StringHandler(BareFormatter, None)
     }
 
     doAfter {

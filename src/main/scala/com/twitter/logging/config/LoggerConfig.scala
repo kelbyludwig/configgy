@@ -27,10 +27,11 @@ class LoggerConfig {
   var node: String = ""
 
   /**
-   * Log level for this node. Leaving it null is java's secret signal to use the parent logger's
+   * Log level for this node. Leaving it None is java's secret signal to use the parent logger's
    * level.
    */
-  var level: Level = null
+  var level: Option[Level] = None
+  def level_=(x: Level) { level = Some(x) }
 
   /**
    * Where to send log messages.
@@ -130,6 +131,9 @@ abstract class SyslogFormatterConfig extends FormatterConfig {
 trait HandlerConfig {
   var formatter: FormatterConfig = BasicFormatterConfig
 
+  var level: Option[Level] = None
+  def level_=(x: Level) { level = Some(x) }
+
   def apply(): Handler
 }
 
@@ -174,7 +178,7 @@ abstract class FileHandlerConfig extends HandlerConfig {
    */
   var rotateCount: Int = -1
 
-  def apply() = new FileHandler(filename, roll, append, rotateCount, formatter())
+  def apply() = new FileHandler(filename, roll, append, rotateCount, formatter(), level)
 }
 
 abstract class SyslogHandlerConfig extends HandlerConfig {
@@ -188,7 +192,7 @@ abstract class SyslogHandlerConfig extends HandlerConfig {
    */
   var port: Int = SyslogHandler.DEFAULT_PORT
 
-  def apply() = new SyslogHandler(server, port, formatter())
+  def apply() = new SyslogHandler(server, port, formatter(), level)
 }
 
 class ScribeHandlerConfig extends HandlerConfig {
@@ -206,5 +210,5 @@ class ScribeHandlerConfig extends HandlerConfig {
   var category = "scala"
 
   def apply() = new ScribeHandler(hostname, port, category, bufferTimeMilliseconds,
-    connectBackoffMilliseconds, maxMessagesPerTransaction, maxMessagesToBuffer, formatter())
+    connectBackoffMilliseconds, maxMessagesPerTransaction, maxMessagesToBuffer, formatter(), level)
 }

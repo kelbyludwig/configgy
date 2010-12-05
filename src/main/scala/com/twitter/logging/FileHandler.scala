@@ -36,8 +36,8 @@ object Policy {
  * at a requested interval (hourly, daily, or weekly).
  */
 class FileHandler(val filename: String, rollPolicy: Policy, val append: Boolean, rotateCount: Int,
-                  formatter: Formatter)
-      extends Handler(formatter) {
+                  formatter: Formatter, level: Option[Level])
+      extends Handler(formatter, level) {
   private var stream: Writer = null
   private var openTime: Long = 0
   private var nextRollTime: Long = 0

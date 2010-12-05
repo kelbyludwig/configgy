@@ -130,7 +130,7 @@ class FileHandlerSpec extends Specification with TempFolder {
     // verify that at the proper time, the log file rolls and resets.
     "roll logs into new files" in {
       withTempFolder {
-        val handler = new FileHandler(folderName + "/test.log", Policy.Hourly, true, -1, BareFormatter) {
+        val handler = new FileHandler(folderName + "/test.log", Policy.Hourly, true, -1, BareFormatter, None) {
           override def computeNextRollTime(): Long = System.currentTimeMillis + 100
         }
         handler.publish(record1)

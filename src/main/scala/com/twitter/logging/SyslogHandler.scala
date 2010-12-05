@@ -97,8 +97,8 @@ class SyslogFormatter(val hostname: String, val serverName: Option[String],
   }
 }
 
-class SyslogHandler(val server: String, val port: Int, formatter: Formatter)
-      extends Handler(formatter) {
+class SyslogHandler(val server: String, val port: Int, formatter: Formatter, level: Option[Level])
+      extends Handler(formatter, level) {
   private val socket = new DatagramSocket
   private[logging] val dest = new InetSocketAddress(server, port)
 

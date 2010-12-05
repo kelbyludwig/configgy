@@ -33,8 +33,8 @@ object ScribeHandler {
 
 class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMilliseconds: Int,
                     connectBackoffMilliseconds: Int, maxMessagesPerTransaction: Int,
-                    maxMessagesToBuffer: Int, formatter: Formatter)
-      extends Handler(formatter) {
+                    maxMessagesToBuffer: Int, formatter: Formatter, level: Option[Level])
+      extends Handler(formatter, level) {
   // it may be necessary to log errors here if scribe is down:
   val log = Logger.get("scribe")
 

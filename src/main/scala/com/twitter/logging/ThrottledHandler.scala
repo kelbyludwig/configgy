@@ -22,7 +22,7 @@ import scala.collection.mutable
 import config._
 
 class ThrottledHandler(val handler: Handler, val durationMilliseconds: Int, val maxToDisplay: Int)
-      extends Handler(handler.formatter) {
+      extends Handler(handler.formatter, handler.level) {
   private class Throttle(now: Long) {
     var startTime: Long = now
     var count: Int = 0

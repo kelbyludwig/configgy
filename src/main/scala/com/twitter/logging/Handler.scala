@@ -25,8 +25,10 @@ import extensions._
  * A base log handler for scala. This extends the java built-in handler and connects it with a
  * formatter automatically.
  */
-abstract class Handler(val formatter: Formatter) extends javalog.Handler {
+abstract class Handler(val formatter: Formatter, val level: Option[Level]) extends javalog.Handler {
   setFormatter(formatter)
+
+  level.foreach { x => setLevel(x) }
 
   override def toString = {
     "<%s level=%s formatter=%s>".format(getClass.getName, getLevel, formatter.toString)
@@ -36,8 +38,8 @@ abstract class Handler(val formatter: Formatter) extends javalog.Handler {
 /**
  * Mostly useful for unit tests: logging goes directly into a string buffer.
  */
-class StringHandler(formatter: Formatter) extends Handler(formatter) {
-  def this() = this(BasicFormatter)
+class StringHandler(formatter: Formatter, level: Option[Level]) extends Handler(formatter, level) {
+  def this() = this(BasicFormatter, None)
 
   private var buffer = new StringBuilder()
 
@@ -59,8 +61,8 @@ class StringHandler(formatter: Formatter) extends Handler(formatter) {
 /**
  * Log things to the console.
  */
-class ConsoleHandler(formatter: Formatter) extends Handler(formatter) {
-  def this() = this(BasicFormatter)
+class ConsoleHandler(formatter: Formatter, level: Option[Level]) extends Handler(formatter, level) {
+  def this() = this(BasicFormatter, None)
 
   def publish(record: javalog.LogRecord) = {
     System.err.print(getFormatter().format(record))
