@@ -18,6 +18,11 @@ package com.twitter.conversions
 
 import scala.util.matching.Regex
 
+object string {
+  implicit def stringToConfiggyString(s: String): ConfiggyString = new ConfiggyString(s)
+  implicit def byteArrayToConfiggyByteArray(b: Array[Byte]): ConfiggyByteArray = new ConfiggyByteArray(b)
+}
+
 final class ConfiggyString(wrapped: String) {
   /**
    * For every section of a string that matches a regular expression, call
@@ -146,10 +151,4 @@ final class ConfiggyByteArray(wrapped: Array[Byte]) {
     }
     out.toString
   }
-}
-
-
-object string {
-  implicit def stringToConfiggyString(s: String): ConfiggyString = new ConfiggyString(s)
-  implicit def byteArrayToConfiggyByteArray(b: Array[Byte]): ConfiggyByteArray = new ConfiggyByteArray(b)
 }
