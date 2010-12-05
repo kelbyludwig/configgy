@@ -19,4 +19,5 @@ package logging
 
 package object config {
   type Level = logging.Level
+  val Level = logging.Level
 }
