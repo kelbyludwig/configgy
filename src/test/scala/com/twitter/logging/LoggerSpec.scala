@@ -212,13 +212,7 @@ class LoggerSpec extends Specification with TempFolder {
                 }
               }
             """
-            try {
-              Logger.configure(config)
-            } catch {
-              case e: com.twitter.configgy.Eval.CompilerException =>
-                e.messages.flatten.foreach { x => println(x) }
-                throw e
-            }
+            Logger.configure(config)
             val log = Logger.get("com.twitter")
             log.getLevel mustEqual Level.DEBUG
             log.getHandlers().length mustEqual 1

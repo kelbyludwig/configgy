@@ -20,7 +20,7 @@ package logging
 import java.util.{Calendar, logging => javalog}
 import scala.collection.{Map, mutable}
 import config._
-import configgy.Eval
+import eval.Eval
 
 // replace java's ridiculous log levels with the standard ones.
 sealed abstract class Level(val name: String, val value: Int) extends javalog.Level(name, value) {

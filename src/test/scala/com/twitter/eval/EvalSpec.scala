@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.twitter.configgy
+package com.twitter.eval
 
 import org.specs.Specification
 import java.io.File
