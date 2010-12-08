@@ -17,8 +17,10 @@
 package com.twitter
 package logging
 
+import java.io.{File, InputStream}
 import java.util.{Calendar, logging => javalog}
 import scala.collection.{Map, mutable}
+import scala.io.Source
 import config._
 import eval.Eval
 
@@ -317,5 +319,13 @@ object Logger extends Iterable[Logger] {
       case x: List[_] => configure(x.asInstanceOf[List[LoggerConfig]])
       case x => throw new Exception("Got " + x + " instead of LoggerConfig")
     }
+  }
+
+  def configure(file: File) {
+    configure(Source.fromFile(file).mkString)
+  }
+
+  def configure(stream: InputStream) {
+    configure(Source.fromInputStream(stream).mkString)
   }
 }

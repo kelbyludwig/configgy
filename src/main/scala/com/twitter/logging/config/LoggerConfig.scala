@@ -101,7 +101,7 @@ object BareFormatterConfig extends FormatterConfig {
   override def apply() = BareFormatter
 }
 
-abstract class SyslogFormatterConfig extends FormatterConfig {
+class SyslogFormatterConfig extends FormatterConfig {
   /**
    * Hostname to prepend to log lines.
    */
@@ -137,7 +137,11 @@ trait HandlerConfig {
   def apply(): Handler
 }
 
-abstract class ThrottledHandlerConfig extends HandlerConfig {
+class ConsoleHandlerConfig extends HandlerConfig {
+  def apply() = new ConsoleHandler(formatter(), level)
+}
+
+class ThrottledHandlerConfig extends HandlerConfig {
   /**
    * Timespan to consider duplicates. After this amount of time, duplicate entries will be logged
    * again.
@@ -157,7 +161,7 @@ abstract class ThrottledHandlerConfig extends HandlerConfig {
   def apply() = new ThrottledHandler(handler(), durationMilliseconds, maxToDisplay)
 }
 
-abstract class FileHandlerConfig extends HandlerConfig {
+class FileHandlerConfig extends HandlerConfig {
   /**
    * Filename to log to.
    */
@@ -181,7 +185,7 @@ abstract class FileHandlerConfig extends HandlerConfig {
   def apply() = new FileHandler(filename, roll, append, rotateCount, formatter(), level)
 }
 
-abstract class SyslogHandlerConfig extends HandlerConfig {
+class SyslogHandlerConfig extends HandlerConfig {
   /**
    * Syslog server hostname.
    */

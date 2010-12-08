@@ -232,6 +232,14 @@ class LoggerSpec extends Specification with TempFolder {
           Logger.configure(config) must throwA[Exception]
         }
       }
+
+      "from resource file" in {
+        Logger.configure(getClass.getClassLoader.getResourceAsStream("test1.scala"))
+        val log = Logger.get("com.twitter")
+        log.getLevel mustEqual Level.DEBUG
+        log.getHandlers().length mustEqual 1
+        val handler = log.getHandlers()(0).asInstanceOf[ConsoleHandler]
+      }
     }
   }
 }
