@@ -17,6 +17,7 @@
 package com.twitter.logging
 
 import com.twitter.TempFolder
+import com.twitter.conversions.time._
 import org.specs.Specification
 import config._
 
@@ -35,7 +36,7 @@ class ThrottledHandlerSpec extends Specification with TempFolder {
 
     "throttle keyed log messages" in {
       val log = Logger()
-      val throttledLog = new ThrottledHandler(handler, 1000, 3)
+      val throttledLog = new ThrottledHandler(handler, 1.second, 3)
       log.addHandler(throttledLog)
 
       log.error("apple: %s", "help!")

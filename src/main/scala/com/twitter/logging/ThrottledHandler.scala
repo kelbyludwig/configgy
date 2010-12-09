@@ -21,10 +21,10 @@ import java.util.{logging => javalog}
 import scala.collection.mutable
 import config._
 
-class ThrottledHandler(val handler: Handler, val durationMilliseconds: Int, val maxToDisplay: Int)
+class ThrottledHandler(val handler: Handler, val duration: Duration, val maxToDisplay: Int)
       extends Handler(handler.formatter, handler.level) {
-  private class Throttle(now: Long) {
-    var startTime: Long = now
+  private class Throttle(now: Time) {
+    var startTime: Time = now
     var count: Int = 0
 
     override def toString = "Throttle: startTime=" + startTime + " count=" + count
@@ -35,7 +35,7 @@ class ThrottledHandler(val handler: Handler, val durationMilliseconds: Int, val 
   def reset() {
     throttleMap.synchronized {
       for ((k, throttle) <- throttleMap) {
-        throttle.startTime = 0
+        throttle.startTime = Time.never
       }
     }
   }
@@ -48,12 +48,12 @@ class ThrottledHandler(val handler: Handler, val durationMilliseconds: Int, val 
    * attach an exception and stack trace.
    */
   def publish(record: javalog.LogRecord) = {
-    val now = System.currentTimeMillis
+    val now = Time.now
     val throttle = throttleMap.synchronized {
       throttleMap.getOrElseUpdate(record.getMessage(), new Throttle(now))
     }
     throttle.synchronized {
-      if (now - throttle.startTime >= durationMilliseconds) {
+      if (now - throttle.startTime >= duration) {
         if (throttle.count > maxToDisplay) {
           val throttledRecord = new javalog.LogRecord(record.getLevel(),
             "(swallowed %d repeating messages)".format(throttle.count - maxToDisplay))

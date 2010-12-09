@@ -31,15 +31,15 @@ object ScribeHandler {
   val TRY_LATER = 1
 }
 
-class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMilliseconds: Int,
-                    connectBackoffMilliseconds: Int, maxMessagesPerTransaction: Int,
+class ScribeHandler(hostname: String, port: Int, category: String, bufferTime: Duration,
+                    connectBackoff: Duration, maxMessagesPerTransaction: Int,
                     maxMessagesToBuffer: Int, formatter: Formatter, level: Option[Level])
       extends Handler(formatter, level) {
   // it may be necessary to log errors here if scribe is down:
   val log = Logger.get("scribe")
 
-  var lastTransmission: Long = 0
-  var lastConnectAttempt: Long = 0
+  var lastTransmission = Time.never
+  var lastConnectAttempt = Time.never
 
   var socket: Option[Socket] = None
   val queue = new mutable.ArrayBuffer[String]
@@ -47,8 +47,8 @@ class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMil
   var archaicServer = false
 
   private def connect() {
-    val now = System.currentTimeMillis
-    if (!socket.isDefined && (now - lastConnectAttempt > connectBackoffMilliseconds)) {
+    val now = Time.now
+    if (!socket.isDefined && (now - lastConnectAttempt > connectBackoff)) {
       lastConnectAttempt = now
       try {
         socket = Some(new Socket(hostname, port))
@@ -83,7 +83,7 @@ class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMil
           if (!archaicServer && (offset > 0) && (response(0) == 0)) {
             archaicServer = true
             close()
-            lastConnectAttempt = 0
+            lastConnectAttempt = Time.never
             log.error("Scribe server is archaic; retrying with old protocol.")
             throw new Retry
           }
@@ -93,7 +93,7 @@ class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMil
         }
         queue.trimStart(count)
         if (queue.isEmpty) {
-          lastTransmission = System.currentTimeMillis
+          lastTransmission = Time.now
         }
       } catch {
         case _: Retry =>
@@ -152,16 +152,15 @@ class ScribeHandler(hostname: String, port: Int, category: String, bufferTimeMil
     while (queue.size > maxMessagesToBuffer) {
       queue.trimStart(1)
     }
-    if (System.currentTimeMillis - lastTransmission >= bufferTimeMilliseconds) {
+    if (Time.now - lastTransmission >= bufferTime) {
       flush()
     }
   }
 
   override def toString = {
-    ("<%s level=%s hostname=%s port=%d scribe_buffer_msec=%d " +
-     "scribe_backoff_msec=%d scribe_max_packet_size=%d formatter=%s>").format(getClass.getName, getLevel,
-      hostname, port, bufferTimeMilliseconds, connectBackoffMilliseconds,
-      maxMessagesPerTransaction, formatter.toString)
+    ("<%s level=%s hostname=%s port=%d scribe_buffer=%s " +
+     "scribe_backoff=%s scribe_max_packet_size=%d formatter=%s>").format(getClass.getName, getLevel,
+      hostname, port, bufferTime, connectBackoff, maxMessagesPerTransaction, formatter.toString)
   }
 
   val SCRIBE_PREFIX: Array[Byte] = Array(

@@ -19,6 +19,7 @@ package logging
 package config
 
 import java.net.InetAddress
+import conversions.time._
 
 class LoggerConfig {
   /**
@@ -146,7 +147,7 @@ class ThrottledHandlerConfig extends HandlerConfig {
    * Timespan to consider duplicates. After this amount of time, duplicate entries will be logged
    * again.
    */
-  var durationMilliseconds: Int = 0
+  var duration: Duration = 0.seconds
 
   /**
    * Maximum duplicate log entries to pass before suppressing them.
@@ -158,7 +159,7 @@ class ThrottledHandlerConfig extends HandlerConfig {
    */
   var handler: HandlerConfig = null
 
-  def apply() = new ThrottledHandler(handler(), durationMilliseconds, maxToDisplay)
+  def apply() = new ThrottledHandler(handler(), duration, maxToDisplay)
 }
 
 class FileHandlerConfig extends HandlerConfig {
@@ -201,10 +202,10 @@ class SyslogHandlerConfig extends HandlerConfig {
 
 class ScribeHandlerConfig extends HandlerConfig {
   // send a scribe message no more frequently than this:
-  var bufferTimeMilliseconds = 100
+  var bufferTime = 100.milliseconds
 
   // don't connect more frequently than this (when the scribe server is down):
-  var connectBackoffMilliseconds = 15000
+  var connectBackoff = 15.seconds
 
   var maxMessagesPerTransaction = 1000
   var maxMessagesToBuffer = 10000
@@ -213,6 +214,6 @@ class ScribeHandlerConfig extends HandlerConfig {
   var port = 1463
   var category = "scala"
 
-  def apply() = new ScribeHandler(hostname, port, category, bufferTimeMilliseconds,
-    connectBackoffMilliseconds, maxMessagesPerTransaction, maxMessagesToBuffer, formatter(), level)
+  def apply() = new ScribeHandler(hostname, port, category, bufferTime,
+    connectBackoff, maxMessagesPerTransaction, maxMessagesToBuffer, formatter(), level)
 }

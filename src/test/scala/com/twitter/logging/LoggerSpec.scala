@@ -19,6 +19,7 @@ package com.twitter.logging
 import java.net.InetSocketAddress
 import java.util.{logging => javalog}
 import com.twitter.conversions.string._
+import com.twitter.conversions.time._
 import com.twitter.TempFolder
 import org.specs.Specification
 import config._
@@ -152,7 +153,7 @@ class LoggerSpec extends Specification with TempFolder {
           val config = new LoggerConfig {
             level = Level.INFO
             handlers = new ThrottledHandlerConfig {
-              durationMilliseconds = 60000
+              duration = 60.seconds
               maxToDisplay = 10
               handler = new FileHandlerConfig {
                 filename = folderName + "/production.log"

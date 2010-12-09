@@ -21,13 +21,14 @@ import java.net.{DatagramPacket, DatagramSocket, InetSocketAddress}
 import java.util.{logging => javalog}
 import org.specs.Specification
 import com.twitter.conversions.string._
+import com.twitter.conversions.time._
 import config._
 
 class ScribeHandlerSpec extends Specification {
-  def config(time: Int, max: Int, _formatter: FormatterConfig) = new ScribeHandlerConfig {
+  def config(time: Duration, max: Int, _formatter: FormatterConfig) = new ScribeHandlerConfig {
     formatter = _formatter
     category = "test"
-    bufferTimeMilliseconds = time
+    bufferTime = time
     maxMessagesToBuffer = max
   }
 
@@ -41,7 +42,7 @@ class ScribeHandlerSpec extends Specification {
   "ScribeHandler" should {
     "build a scribe RPC call" in {
       val scribe = new ScribeHandlerConfig {
-        bufferTimeMilliseconds = 100
+        bufferTime = 100.milliseconds
         maxMessagesToBuffer = 10000
         formatter = new FormatterConfig { timezone = "UTC" }
         category = "test"
@@ -57,7 +58,7 @@ class ScribeHandlerSpec extends Specification {
 
     "throw away log messages if scribe is too busy" in {
       val scribe = new ScribeHandlerConfig {
-        bufferTimeMilliseconds = 5000
+        bufferTime = 5.seconds
         maxMessagesToBuffer = 1
         formatter = BareFormatterConfig
         category = "test"
