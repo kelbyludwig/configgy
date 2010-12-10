@@ -46,6 +46,7 @@ class ScribeHandlerSpec extends Specification {
         maxMessagesToBuffer = 10000
         formatter = new FormatterConfig { timezone = "UTC" }
         category = "test"
+        level = Level.DEBUG
       }.apply()
       scribe.publish(record1)
       scribe.publish(record2)

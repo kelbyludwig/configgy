@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-package com.twitter
-package logging
+package com.twitter.logging
 package config
 
 import java.net.InetAddress
-import conversions.time._
+import com.twitter.Duration
+import com.twitter.config.Config
+import com.twitter.conversions.time._
 
-class LoggerConfig {
+class LoggerConfig extends Config[Logger] {
   /**
    * Name of the logging node. The default ("") is the top-level logger.
    */
@@ -32,28 +33,32 @@ class LoggerConfig {
    * level.
    */
   var level: Option[Level] = None
-  def level_=(x: Level) { level = Some(x) }
 
   /**
    * Where to send log messages.
    */
   var handlers: List[HandlerConfig] = Nil
-  def handlers_=(h: HandlerConfig) { handlers = List(h) }
 
   /**
    * Override to have log messages stop at this node. Otherwise they are passed up to parent
    * nodes.
    */
   var useParents = true
+
+  def apply(): Logger = {
+    val logger = Logger.get(node)
+    level.foreach { x => logger.setLevel(x) }
+    handlers.foreach { h => logger.addHandler(h()) }
+    logger
+  }
 }
 
-class FormatterConfig {
+class FormatterConfig extends Config[Formatter] {
   /**
    * Should dates in log messages be reported in a different time zone rather than local time?
    * If set, the time zone name must be one known by the java `TimeZone` class.
    */
   var timezone: Option[String] = None
-  def timezone_=(zone: String) { timezone = Some(zone) }
 
   /**
    * Truncate log messages after N characters. 0 = don't truncate (the default).
@@ -129,13 +134,10 @@ class SyslogFormatterConfig extends FormatterConfig {
     timezone, truncateAt, truncateStackTracesAt)
 }
 
-trait HandlerConfig {
+trait HandlerConfig extends Config[Handler] {
   var formatter: FormatterConfig = BasicFormatterConfig
 
   var level: Option[Level] = None
-  def level_=(x: Level) { level = Some(x) }
-
-  def apply(): Handler
 }
 
 class ConsoleHandlerConfig extends HandlerConfig {

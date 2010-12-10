@@ -302,20 +302,12 @@ object Logger extends Iterable[Logger] {
 
   def configure(config: List[LoggerConfig]) {
     clearHandlers()
-    config.foreach { configure(_) }
-  }
-
-  def configure(config: LoggerConfig) = {
-    val logger = get(config.node)
-    val handlers = config.handlers.map { _() }
-    config.level.foreach { x => logger.setLevel(x) }
-    handlers.foreach { logger.addHandler(_) }
-    logger
+    config.foreach { _() }
   }
 
   def configure(code: String) {
     Eval[AnyRef](code) match {
-      case x: LoggerConfig => configure(x)
+      case x: LoggerConfig => x()
       case x: List[_] => configure(x.asInstanceOf[List[LoggerConfig]])
       case x => throw new Exception("Got " + x + " instead of LoggerConfig")
     }

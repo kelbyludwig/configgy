@@ -91,7 +91,7 @@ class LoggerSpec extends Specification with TempFolder {
     "configure logging" in {
       "file handler" in {
         withTempFolder {
-          val config = new LoggerConfig {
+          val log = new LoggerConfig {
             node = "com.twitter"
             level = Level.DEBUG
             handlers = new FileHandlerConfig {
@@ -105,9 +105,7 @@ class LoggerSpec extends Specification with TempFolder {
                 prefix = "%s <HH:mm> %s"
               }
             } :: Nil
-          }
-
-          val log = Logger.configure(config)
+          }.apply()
 
           log.getLevel mustEqual Level.DEBUG
           log.getHandlers().length mustEqual 1
@@ -125,7 +123,7 @@ class LoggerSpec extends Specification with TempFolder {
 
       "syslog handler" in {
         withTempFolder {
-          val config = new LoggerConfig {
+          val log = new LoggerConfig {
             node = "com.twitter"
             handlers = new SyslogHandlerConfig {
               formatter = new SyslogFormatterConfig {
@@ -135,9 +133,8 @@ class LoggerSpec extends Specification with TempFolder {
               server = "example.com"
               port = 212
             } :: Nil
-          }
+          }.apply()
 
-          val log = Logger.configure(config)
           log.getHandlers.length mustEqual 1
           val h = log.getHandlers()(0).asInstanceOf[SyslogHandler]
           h.dest.asInstanceOf[InetSocketAddress].getHostName mustEqual "example.com"
