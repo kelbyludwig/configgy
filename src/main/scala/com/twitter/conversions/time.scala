@@ -23,8 +23,8 @@ object time {
     def second = seconds
     def milliseconds = new Duration(wrapped)
     def millisecond = milliseconds
-    def microseconds = new Duration(wrapped * 1000)
-    def nanoseconds = new Duration(wrapped * 1000000)
+    def microseconds = new Duration(wrapped / 1000)
+    def nanoseconds = new Duration(wrapped / 1000000)
     def millis = milliseconds
     def minutes = new Duration(wrapped * 1000 * 60)
     def minute = minutes
