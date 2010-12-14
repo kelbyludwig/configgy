@@ -20,4 +20,6 @@ package logging
 package object config {
   type Level = logging.Level
   val Level = logging.Level
+  type Policy = logging.Policy
+  val Policy = logging.Policy
 }
