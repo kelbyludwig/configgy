@@ -20,6 +20,7 @@ package logging
 import java.util.{logging => javalog}
 import scala.collection.mutable
 import com.twitter.conversions.time._
+import com.twitter.util.{Duration, Time}
 import config._
 
 class ThrottledHandler(val handler: Handler, val duration: Duration, val maxToDisplay: Int)

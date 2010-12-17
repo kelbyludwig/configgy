@@ -20,7 +20,7 @@ import java.net.InetSocketAddress
 import java.util.{logging => javalog}
 import com.twitter.conversions.string._
 import com.twitter.conversions.time._
-import com.twitter.TempFolder
+import com.twitter.util.TempFolder
 import org.specs.Specification
 import config._
 

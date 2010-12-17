@@ -16,7 +16,7 @@
 
 package com.twitter.logging
 
-import com.twitter.{TempFolder, Time}
+import com.twitter.util.{TempFolder, Time}
 import com.twitter.conversions.time._
 import org.specs.Specification
 import config._

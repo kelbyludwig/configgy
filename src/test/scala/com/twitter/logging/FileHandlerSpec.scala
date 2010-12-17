@@ -21,6 +21,7 @@ import java.io._
 import java.util.{Calendar, Date}
 import java.util.{logging => javalog}
 import com.twitter.conversions.string._
+import com.twitter.util.TempFolder
 import org.specs.Specification
 import config._
 

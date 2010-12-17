@@ -22,6 +22,7 @@ import java.util.{logging => javalog}
 import org.specs.Specification
 import com.twitter.conversions.string._
 import com.twitter.conversions.time._
+import com.twitter.util.Duration
 import config._
 
 class ScribeHandlerSpec extends Specification {

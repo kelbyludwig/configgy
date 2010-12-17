@@ -21,8 +21,8 @@ import java.io.{File, InputStream}
 import java.util.{Calendar, logging => javalog}
 import scala.collection.{Map, mutable}
 import scala.io.Source
+import com.twitter.util.Eval
 import config._
-import eval.Eval
 
 // replace java's ridiculous log levels with the standard ones.
 sealed abstract class Level(val name: String, val value: Int) extends javalog.Level(name, value) {

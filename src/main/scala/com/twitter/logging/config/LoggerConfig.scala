@@ -18,8 +18,8 @@ package com.twitter.logging
 package config
 
 import java.net.InetAddress
-import com.twitter.Duration
 import com.twitter.config.Config
+import com.twitter.util.Duration
 import com.twitter.conversions.time._
 
 class LoggerConfig extends Config[Logger] {

@@ -22,6 +22,7 @@ import java.net._
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.{Arrays, logging => javalog}
 import scala.collection.mutable
+import com.twitter.util.{Duration, Time}
 import config._
 
 private class Retry extends Exception("retry")
