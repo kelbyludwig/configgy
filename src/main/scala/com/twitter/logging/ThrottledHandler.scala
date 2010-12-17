@@ -19,15 +19,28 @@ package logging
 
 import java.util.{logging => javalog}
 import scala.collection.mutable
+import com.twitter.conversions.time._
 import config._
 
 class ThrottledHandler(val handler: Handler, val duration: Duration, val maxToDisplay: Int)
       extends Handler(handler.formatter, handler.level) {
-  private class Throttle(now: Time) {
+  private class Throttle(now: Time, name: String, level: javalog.Level) {
     var startTime: Time = now
     var count: Int = 0
 
     override def toString = "Throttle: startTime=" + startTime + " count=" + count
+
+    final def checkFlush(now: Time) {
+      if (now - startTime >= duration) {
+        if (count > maxToDisplay) {
+          val throttledRecord = new javalog.LogRecord(level, "(swallowed %d repeating messages)".format(count - maxToDisplay))
+          throttledRecord.setLoggerName(name)
+          handler.publish(throttledRecord)
+        }
+        startTime = now
+        count = 0
+      }
+    }
   }
 
   private val throttleMap = new mutable.HashMap[String, Throttle]
@@ -43,26 +56,26 @@ class ThrottledHandler(val handler: Handler, val duration: Duration, val maxToDi
   def close() = handler.close()
   def flush() = handler.flush()
 
+  @volatile var lastFlushCheck = Time.never
+
   /**
    * Log a message, with sprintf formatting, at the desired level, and
    * attach an exception and stack trace.
    */
   def publish(record: javalog.LogRecord) = {
     val now = Time.now
+    if (now - lastFlushCheck > 1.second) {
+      lastFlushCheck = now
+      throttleMap.synchronized {
+        throttleMap.values.foreach { t => t.checkFlush(now) }
+      }
+    }
     val throttle = throttleMap.synchronized {
-      throttleMap.getOrElseUpdate(record.getMessage(), new Throttle(now))
+      throttleMap.getOrElseUpdate(record.getMessage(),
+                                  new Throttle(now, record.getLoggerName(), record.getLevel()))
     }
     throttle.synchronized {
-      if (now - throttle.startTime >= duration) {
-        if (throttle.count > maxToDisplay) {
-          val throttledRecord = new javalog.LogRecord(record.getLevel(),
-            "(swallowed %d repeating messages)".format(throttle.count - maxToDisplay))
-          throttledRecord.setLoggerName(record.getLoggerName())
-          handler.publish(throttledRecord)
-        }
-        throttle.startTime = now
-        throttle.count = 0
-      }
+      throttle.checkFlush(now)
       throttle.count += 1
       if (throttle.count <= maxToDisplay) {
         handler.publish(record)

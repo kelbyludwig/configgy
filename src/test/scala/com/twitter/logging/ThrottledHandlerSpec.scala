@@ -16,7 +16,7 @@
 
 package com.twitter.logging
 
-import com.twitter.TempFolder
+import com.twitter.{TempFolder, Time}
 import com.twitter.conversions.time._
 import org.specs.Specification
 import config._
@@ -50,6 +50,24 @@ class ThrottledHandlerSpec extends Specification with TempFolder {
       log.error("apple: %s", "done.")
 
       handler.get.split("\n").toList mustEqual List("apple: help!", "apple: help 2!", "orange: orange!", "orange: orange!", "apple: help 3!", "(swallowed 2 repeating messages)", "apple: done.")
+    }
+
+    "log the summary even if nothing more is logged with that name" in {
+      Time.withCurrentTimeFrozen { time =>
+        val log = Logger()
+        val throttledLog = new ThrottledHandler(handler, 1.second, 3)
+        log.addHandler(throttledLog)
+        log.error("apple: %s", "help!")
+        log.error("apple: %s", "help!")
+        log.error("apple: %s", "help!")
+        log.error("apple: %s", "help!")
+        log.error("apple: %s", "help!")
+
+        time.advance(2.seconds)
+        log.error("hello.")
+
+        handler.get.split("\n").toList mustEqual List("apple: help!", "apple: help!", "apple: help!", "(swallowed 2 repeating messages)", "hello.")
+      }
     }
   }
 }
