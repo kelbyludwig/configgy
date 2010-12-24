@@ -49,7 +49,7 @@ class ThrottledHandler(val handler: Handler, val duration: Duration, val maxToDi
   def reset() {
     throttleMap.synchronized {
       for ((k, throttle) <- throttleMap) {
-        throttle.startTime = Time.never
+        throttle.startTime = Time(0)
       }
     }
   }
@@ -57,7 +57,7 @@ class ThrottledHandler(val handler: Handler, val duration: Duration, val maxToDi
   def close() = handler.close()
   def flush() = handler.flush()
 
-  @volatile var lastFlushCheck = Time.never
+  @volatile var lastFlushCheck = Time(0)
 
   /**
    * Log a message, with sprintf formatting, at the desired level, and

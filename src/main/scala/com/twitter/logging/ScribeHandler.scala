@@ -39,8 +39,8 @@ class ScribeHandler(hostname: String, port: Int, category: String, bufferTime: D
   // it may be necessary to log errors here if scribe is down:
   val log = Logger.get("scribe")
 
-  var lastTransmission = Time.never
-  var lastConnectAttempt = Time.never
+  var lastTransmission = Time(0)
+  var lastConnectAttempt = Time(0)
 
   var socket: Option[Socket] = None
   val queue = new mutable.ArrayBuffer[String]
@@ -84,7 +84,7 @@ class ScribeHandler(hostname: String, port: Int, category: String, bufferTime: D
           if (!archaicServer && (offset > 0) && (response(0) == 0)) {
             archaicServer = true
             close()
-            lastConnectAttempt = Time.never
+            lastConnectAttempt = Time(0)
             log.error("Scribe server is archaic; retrying with old protocol.")
             throw new Retry
           }
