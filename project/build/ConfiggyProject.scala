@@ -2,7 +2,7 @@ import sbt._
 import com.twitter.sbt._
 
 class ConfiggyProject(info: ProjectInfo) extends StandardProject(info) with SubversionPublisher {
-  val util = "com.twitter" % "util" % "1.4.2-SNAPSHOT"
+  val util = "com.twitter" % "util" % "1.4.5-SNAPSHOT"
   val json = "com.twitter" % "json_2.8.0" % "2.1.4"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % "2.8.1" % "compile"
 
