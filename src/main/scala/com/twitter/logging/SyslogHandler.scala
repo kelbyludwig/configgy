@@ -108,7 +108,7 @@ class SyslogHandler(val server: String, val port: Int, formatter: Formatter, lev
   def publish(record: javalog.LogRecord) = {
     val data = formatter.format(record).getBytes
     val packet = new DatagramPacket(data, data.length, dest)
-    Future {
+    SyslogFuture {
       try {
         socket.send(packet)
       } catch {
@@ -119,7 +119,7 @@ class SyslogHandler(val server: String, val port: Int, formatter: Formatter, lev
   }
 }
 
-object Future {
+object SyslogFuture {
   private case class Do(action: () => Unit)
   private case object Wait
 

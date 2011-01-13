@@ -17,7 +17,9 @@
 package com.twitter.logging
 
 import java.net.InetSocketAddress
+import java.util.concurrent.{Callable, CountDownLatch, Executors, Future, TimeUnit}
 import java.util.{logging => javalog}
+import scala.collection.mutable
 import com.twitter.conversions.string._
 import com.twitter.conversions.time._
 import com.twitter.util.TempFolder
@@ -86,6 +88,43 @@ class LoggerSpec extends Specification with TempFolder {
       log.addHandler(timeFrozenHandler)
       log.error("error!")
       parse() mustEqual List("ERR [20080329-05:53:16.722] (root): error!")
+    }
+
+    "get single-threaded return the same value" in {
+      val loggerFirst = Logger.get("getTest")
+      loggerFirst must notBeNull
+
+      val loggerSecond = Logger.get("getTest")
+      loggerSecond must be(loggerFirst)
+    }
+
+    "get multi-threaded return the same value" in {
+      val numThreads = 10
+      val latch = new CountDownLatch(1)
+
+      // queue up the workers
+      val executorService = Executors.newFixedThreadPool(numThreads)
+      val futureResults = new mutable.ListBuffer[Future[Logger]]
+      for (i <- 0.until(numThreads)) {
+        val future = executorService.submit(new Callable[Logger]() {
+          def call(): Logger = {
+            latch.await(10, TimeUnit.SECONDS)
+            return Logger.get("concurrencyTest")
+          }
+        })
+        futureResults += future
+      }
+      executorService.shutdown
+      // let them rip, and then wait for em to finish
+      latch.countDown
+      executorService.awaitTermination(10, TimeUnit.SECONDS) must beTrue
+
+      // now make sure they are all the same reference
+      val expected = futureResults(0).get
+      for (i <- 1.until(numThreads)) {
+        val result = futureResults(i).get
+        result must be(expected)
+      }
     }
 
     "configure logging" in {

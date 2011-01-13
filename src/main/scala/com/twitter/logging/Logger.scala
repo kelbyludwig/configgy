@@ -19,7 +19,8 @@ package logging
 
 import java.io.{File, InputStream}
 import java.util.{Calendar, logging => javalog}
-import scala.collection.{Map, mutable}
+import scala.collection.{JavaConversions, Map}
+import scala.collection.mutable
 import scala.io.Source
 import com.twitter.util.Eval
 import config._
@@ -305,7 +306,7 @@ object Logger extends Iterable[Logger] {
   /**
    * Iterate the Logger objects that have been created.
    */
-  def iterator: Iterator[Logger] = loggersCache.values.iterator
+  def iterator: Iterator[Logger] = JavaConversions.asScalaIterator(loggersCache.values.iterator)
 
   def configure(config: List[LoggerConfig]) {
     clearHandlers()

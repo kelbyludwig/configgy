@@ -47,7 +47,7 @@ class SyslogHandlerSpec extends Specification {
       syslog.publish(record1)
       syslog.publish(record2)
 
-      Future.sync
+      SyslogFuture.sync
       val p = new DatagramPacket(new Array[Byte](1024), 1024)
       serverSocket.receive(p)
       new String(p.getData, 0, p.getLength) mustEqual "<9>2008-03-29T05:53:16 raccoon.local whiskey: fatal message!"
@@ -70,7 +70,7 @@ class SyslogHandlerSpec extends Specification {
       }.apply()
       syslog.publish(record1)
 
-      Future.sync
+      SyslogFuture.sync
       val p = new DatagramPacket(new Array[Byte](1024), 1024)
       serverSocket.receive(p)
       new String(p.getData, 0, p.getLength) mustEqual "<9>2008-03-29T05:53:16 raccoon.local [pingd] whiskey: fatal message!"
@@ -91,7 +91,7 @@ class SyslogHandlerSpec extends Specification {
       }.apply()
       syslog.publish(record1)
 
-      Future.sync
+      SyslogFuture.sync
       val p = new DatagramPacket(new Array[Byte](1024), 1024)
       serverSocket.receive(p)
       new String(p.getData, 0, p.getLength) mustEqual "<9>Mar 29 05:53:16 raccoon.local whiskey: fatal message!"
