@@ -151,8 +151,10 @@ object Logger extends Iterable[Logger] {
   private[logging] val levelNamesMap = new mutable.HashMap[String, Level]
   private[logging] val levelsMap = new mutable.HashMap[Int, Level]
 
-  // cache scala Logger objects per name
-  private val loggersCache = new mutable.HashMap[String, Logger]
+  // A cache of scala Logger objects by name.
+  // Using a low concurrencyLevel (2), with the assumption that we aren't ever creating too
+  // many loggers at the same time.
+  private val loggersCache = new java.util.concurrent.ConcurrentHashMap[String, Logger](128, 0.75f, 2)
 
   private val root: Logger = get("")
 
@@ -253,13 +255,18 @@ object Logger extends Iterable[Logger] {
    */
   def get(name: String): Logger = {
     loggersCache.get(name) match {
-      case Some(logger) =>
+      case logger: Logger =>
         logger
-      case None =>
+      case null =>
         val logger = new Logger(name, javalog.Logger.getLogger(name))
         logger.setUseParentHandlers(true)
-        loggersCache.put(name, logger)
-        logger
+
+        val oldLogger = loggersCache.putIfAbsent(name, logger)
+        if (oldLogger != null) {
+          oldLogger
+        } else {
+          logger
+        }
     }
   }
 
