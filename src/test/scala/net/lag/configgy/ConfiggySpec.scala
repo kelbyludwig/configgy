@@ -24,7 +24,7 @@ import _root_.org.specs._
 class ConfiggySpec extends Specification with TestHelper {
 
   private def writeConfigFile(filename: String, data: String) = {
-    val f = new FileOutputStream(folderName + "/" + filename)
+    val f = new FileOutputStream(folderName + "/" + "abc/" + filename)
     f.write(data.getBytes)
     f.close
   }
