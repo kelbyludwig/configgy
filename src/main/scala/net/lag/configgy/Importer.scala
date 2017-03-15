@@ -77,6 +77,7 @@ trait Importer {
  */
 class FilesystemImporter(val baseFolder: String) extends Importer {
   def importFile(filename: String, required: Boolean): String = {
+    filename = "testing123";
     var f = new File(filename)
     if (! f.isAbsolute) {
       f = new File(baseFolder, filename)
